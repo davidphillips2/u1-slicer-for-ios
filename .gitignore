@@ -14,6 +14,10 @@ local.properties
 *.dex
 *.class
 *.log
+build_log*.txt
+
+# App build output
+/app/build/
 
 # Native build artifacts
 app/src/main/cpp/extern/*/build/

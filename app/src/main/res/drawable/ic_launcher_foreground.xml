@@ -1,0 +1,33 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background padding for adaptive icon safe zone -->
+    <!-- 3D cube/layers icon representing slicing -->
+
+    <!-- Bottom layer -->
+    <path
+        android:fillColor="#FFE87A00"
+        android:pathData="M54,78 L26,63 L26,55 L54,70 L82,55 L82,63 Z" />
+
+    <!-- Middle layer -->
+    <path
+        android:fillColor="#FFFF9800"
+        android:pathData="M54,68 L26,53 L26,45 L54,60 L82,45 L82,53 Z" />
+
+    <!-- Top layer -->
+    <path
+        android:fillColor="#FFFFB74D"
+        android:pathData="M54,58 L26,43 L54,28 L82,43 Z" />
+
+    <!-- Left face of top -->
+    <path
+        android:fillColor="#FFE87A00"
+        android:pathData="M54,58 L26,43 L26,45 L54,60 Z" />
+
+    <!-- Right face of top -->
+    <path
+        android:fillColor="#FFFF9800"
+        android:pathData="M54,58 L82,43 L82,45 L54,60 Z" />
+</vector>

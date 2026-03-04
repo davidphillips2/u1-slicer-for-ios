@@ -173,9 +173,32 @@ SliceResult SlicerEngine::slice(const SliceConfig& config, ProgressCallback prog
         }
         result.total_layers = max_layers;
 
-        // Time is a string like "1h 20m"
-        result.estimated_time_seconds = 0.0f; 
-        SAPIL_LOGI("Estimated completion time: %s", stats.estimated_normal_print_time.c_str());
+        // Parse time string like "1d 2h 30m 15s" or "2h 30m" into seconds
+        {
+            const std::string& time_str = stats.estimated_normal_print_time;
+            SAPIL_LOGI("Estimated completion time: %s", time_str.c_str());
+            float total_seconds = 0.0f;
+            int num = 0;
+            for (size_t i = 0; i < time_str.size(); ++i) {
+                char c = time_str[i];
+                if (c >= '0' && c <= '9') {
+                    num = num * 10 + (c - '0');
+                } else if (c == 'd') {
+                    total_seconds += num * 86400.0f;
+                    num = 0;
+                } else if (c == 'h') {
+                    total_seconds += num * 3600.0f;
+                    num = 0;
+                } else if (c == 'm') {
+                    total_seconds += num * 60.0f;
+                    num = 0;
+                } else if (c == 's') {
+                    total_seconds += num;
+                    num = 0;
+                }
+            }
+            result.estimated_time_seconds = total_seconds;
+        }
 
         result.estimated_filament_mm = stats.total_used_filament > 0 ?
             (float)stats.total_used_filament : 0.0f;

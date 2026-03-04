@@ -2,6 +2,7 @@ package com.u1.slicer
 
 import android.app.Application
 import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.u1.slicer.data.ModelInfo
@@ -44,10 +45,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     val gcodePreview: StateFlow<String> = _gcodePreview.asStateFlow()
 
     init {
-        _coreVersion.value = native.getCoreVersion()
+        _coreVersion.value = if (NativeLibrary.isLoaded) {
+            native.getCoreVersion()
+        } else {
+            "Native library not available"
+        }
     }
 
     fun loadModel(uri: Uri) {
+        if (!NativeLibrary.isLoaded) {
+            _state.value = SlicerState.Error("Native slicer library not available on this device (arm64 required)")
+            return
+        }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 // Copy URI content to internal storage
@@ -57,7 +66,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
-                val filename = uri.lastPathSegment ?: "model.stl"
+                val filename = getDisplayName(context, uri) ?: "model.stl"
                 val file = File(context.filesDir, filename)
                 file.outputStream().use { inputStream.copyTo(it) }
 
@@ -112,5 +121,16 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             native.loadProfile(path)
         }
+    }
+
+    private fun getDisplayName(context: android.content.Context, uri: Uri): String? {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) return cursor.getString(idx)
+            }
+        }
+        // Fallback: extract from path segment
+        return uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast(':')
     }
 }

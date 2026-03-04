@@ -1,5 +1,6 @@
 package com.u1.slicer
 
+import android.util.Log
 import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceConfig
 import com.u1.slicer.data.SliceResult
@@ -10,8 +11,15 @@ import com.u1.slicer.data.SliceResult
  */
 class NativeLibrary {
     companion object {
-        init {
+        private const val TAG = "NativeLibrary"
+
+        val isLoaded: Boolean = try {
             System.loadLibrary("prusaslicer-jni")
+            Log.i(TAG, "Native library loaded successfully")
+            true
+        } catch (e: UnsatisfiedLinkError) {
+            Log.w(TAG, "Native library not available: ${e.message}")
+            false
         }
     }
 
