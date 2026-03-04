@@ -1,0 +1,42 @@
+package com.u1.slicer
+
+import com.u1.slicer.data.ModelInfo
+import com.u1.slicer.data.SliceConfig
+import com.u1.slicer.data.SliceResult
+
+/**
+ * JNI bridge to the SAPIL (Slicer API Layer) native library.
+ * All native methods correspond to functions in slicer_wrapper.cpp.
+ */
+class NativeLibrary {
+    companion object {
+        init {
+            System.loadLibrary("prusaslicer-jni")
+        }
+    }
+
+    // ---- Core ----
+    external fun getCoreVersion(): String
+
+    // ---- Model ----
+    external fun loadModel(path: String): Boolean
+    external fun clearModel()
+    external fun getModelInfo(): ModelInfo?
+
+    // ---- Slicing ----
+    external fun slice(config: SliceConfig): SliceResult?
+
+    // ---- Profile ----
+    external fun loadProfile(path: String): Boolean
+
+    // ---- G-code ----
+    external fun getGcodePreview(maxLines: Int = 100): String
+
+    // ---- Progress Callback (called from native code) ----
+    fun onSliceProgress(percentage: Int, stage: String) {
+        progressListener?.invoke(percentage, stage)
+    }
+
+    // ---- Kotlin-side listener ----
+    var progressListener: ((Int, String) -> Unit)? = null
+}

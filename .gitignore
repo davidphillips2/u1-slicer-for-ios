@@ -1,0 +1,37 @@
+# u1-slicer-for-android
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.apk
+*.aab
+*.dex
+*.class
+*.log
+
+# Native build artifacts
+app/src/main/cpp/extern/*/build/
+app/src/main/cpp/extern/*/lib/
+app/src/main/cpp/extern/*/bin/
+app/src/main/cpp/extern/*/include/
+# Exception: keep our manual stubs
+!app/src/main/cpp/extern/*_stub/
+
+# Build directories
+/build-android/
+/app/src/main/cpp/build-android/
+/scripts/build/
+
+# Ignore compiled binaries (rebuilt via script)
+*.o
+*.so
+*.a
+
+# PrusaSlicer source (large, fetched via script)
+app/src/main/cpp/prusaslicer/

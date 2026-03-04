@@ -1,0 +1,51 @@
+package com.u1.slicer.data
+
+/**
+ * Mirrors sapil::SliceConfig in C++.
+ * Maps to PrusaSlicer's DynamicPrintConfig.
+ */
+data class SliceConfig(
+    // Print settings
+    @JvmField var layerHeight: Float = 0.2f,
+    @JvmField var firstLayerHeight: Float = 0.3f,
+    @JvmField var perimeters: Int = 2,
+    @JvmField var topSolidLayers: Int = 5,
+    @JvmField var bottomSolidLayers: Int = 4,
+    @JvmField var fillDensity: Float = 0.15f,
+    @JvmField var fillPattern: String = "gyroid",
+
+    // Speed (mm/s)
+    @JvmField var printSpeed: Float = 60f,
+    @JvmField var travelSpeed: Float = 150f,
+    @JvmField var firstLayerSpeed: Float = 20f,
+
+    // Temperature
+    @JvmField var nozzleTemp: Int = 210,
+    @JvmField var bedTemp: Int = 60,
+
+    // Retraction
+    @JvmField var retractLength: Float = 0.8f,
+    @JvmField var retractSpeed: Float = 45f,
+
+    // Support
+    @JvmField var supportEnabled: Boolean = false,
+    @JvmField var supportType: String = "normal",
+    @JvmField var supportAngle: Float = 45f,
+
+    // Skirt/Brim
+    @JvmField var skirtLoops: Int = 1,
+    @JvmField var skirtDistance: Float = 6f,
+    @JvmField var brimWidth: Float = 0f,
+
+    // Printer bed
+    @JvmField var bedSizeX: Float = 250f,
+    @JvmField var bedSizeY: Float = 210f,
+    @JvmField var maxPrintHeight: Float = 210f,
+
+    // Nozzle
+    @JvmField var nozzleDiameter: Float = 0.4f,
+
+    // Filament
+    @JvmField var filamentDiameter: Float = 1.75f,
+    @JvmField var filamentType: String = "PLA"
+)

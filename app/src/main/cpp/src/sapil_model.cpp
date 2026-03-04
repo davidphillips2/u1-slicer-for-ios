@@ -1,0 +1,155 @@
+#include "../include/sapil.h"
+#include "sapil_internal.h"
+#include <fstream>
+#include <algorithm>
+#include <cmath>
+
+// PrusaSlicer includes
+#include "libslic3r/Model.hpp"
+#include "libslic3r/TriangleMesh.hpp"
+#include "libslic3r/Format/STL.hpp"
+#include "libslic3r/Format/3mf.hpp"
+#include "libslic3r/Format/OBJ.hpp"
+#include "libslic3r/Format/STEP.hpp"
+#include "libslic3r/BoundingBox.hpp"
+
+// =============================================================================
+// sapil_model.cpp — Model loading using PrusaSlicer's Slic3r::Model
+// =============================================================================
+
+namespace sapil {
+
+// Persistent model state
+static Slic3r::Model g_model;
+static ModelInfo g_model_info;
+static bool g_model_loaded = false;
+
+bool SlicerEngine::loadModel(const std::string& filepath) {
+    SAPIL_LOGI("Loading model: %s", filepath.c_str());
+
+    // Determine format from extension
+    std::string ext = filepath.substr(filepath.find_last_of('.') + 1);
+    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+    if (ext != "stl" && ext != "3mf" && ext != "obj" && ext != "step" && ext != "stp") {
+        SAPIL_LOGE("Unsupported file format: %s", ext.c_str());
+        return false;
+    }
+
+    // Check file exists
+    std::ifstream f(filepath);
+    if (!f.good()) {
+        SAPIL_LOGE("File not found: %s", filepath.c_str());
+        return false;
+    }
+    f.close();
+
+    try {
+        // Use PrusaSlicer's Model::read_from_file
+        Slic3r::DynamicPrintConfig config;
+        Slic3r::ConfigSubstitutionContext config_substitutions(Slic3r::ForwardCompatibilitySubstitutionRule::Enable);
+
+        g_model = Slic3r::Model::read_from_file(filepath, &config, &config_substitutions);
+
+        if (g_model.objects.empty()) {
+            SAPIL_LOGE("No objects found in file");
+            return false;
+        }
+
+        // Extract model info
+        g_model_info.filename = filepath.substr(filepath.find_last_of("/\\") + 1);
+        g_model_info.format = ext;
+
+        // Calculate bounding box across all objects
+        Slic3r::BoundingBoxf3 bb;
+        int total_triangles = 0;
+        int total_volumes = 0;
+        bool all_manifold = true;
+
+        for (const auto* obj : g_model.objects) {
+            for (const auto* vol : obj->volumes) {
+                total_volumes++;
+                const auto& mesh = vol->mesh();
+                total_triangles += mesh.facets_count();
+                if (!mesh.stats().manifold()) {
+                    all_manifold = false;
+                }
+
+            }
+            bb.merge(obj->bounding_box_exact());
+        }
+
+        Slic3r::Vec3d size = bb.size();
+        g_model_info.size_x = static_cast<float>(size.x());
+        g_model_info.size_y = static_cast<float>(size.y());
+        g_model_info.size_z = static_cast<float>(size.z());
+        g_model_info.triangle_count = total_triangles;
+        g_model_info.volume_count = total_volumes;
+        g_model_info.is_manifold = all_manifold;
+
+        g_model_loaded = true;
+
+        SAPIL_LOGI("Model loaded: %s (%s) — %.1f x %.1f x %.1f mm, %d triangles",
+            g_model_info.filename.c_str(), ext.c_str(),
+            g_model_info.size_x, g_model_info.size_y, g_model_info.size_z,
+            g_model_info.triangle_count);
+
+        return true;
+
+    } catch (const std::exception& e) {
+        SAPIL_LOGE("Failed to load model: %s", e.what());
+        g_model_loaded = false;
+        return false;
+    }
+}
+
+ModelInfo SlicerEngine::getModelInfo() const {
+    return g_model_info;
+}
+
+void SlicerEngine::clearModel() {
+    g_model.clear_objects();
+    g_model_info = ModelInfo();
+    g_model_loaded = false;
+    SAPIL_LOGI("Model cleared");
+}
+
+// Accessor for the global model (used by sapil_print.cpp)
+Slic3r::Model& getGlobalModel() {
+    return g_model;
+}
+
+bool isModelLoaded() {
+    return g_model_loaded;
+}
+
+jobject modelInfoToJava(JNIEnv* env, const ModelInfo& info) {
+    jclass cls = env->FindClass("com/u1/slicer/data/ModelInfo");
+    if (!cls) {
+        SAPIL_LOGE("ModelInfo class not found");
+        return nullptr;
+    }
+
+    jmethodID constructor = env->GetMethodID(cls, "<init>",
+        "(Ljava/lang/String;Ljava/lang/String;FFFIIIZ)V");
+    if (!constructor) {
+        SAPIL_LOGE("ModelInfo constructor not found");
+        return nullptr;
+    }
+
+    jstring jfilename = env->NewStringUTF(info.filename.c_str());
+    jstring jformat = env->NewStringUTF(info.format.c_str());
+
+    jobject obj = env->NewObject(cls, constructor,
+        jfilename, jformat,
+        info.size_x, info.size_y, info.size_z,
+        info.triangle_count, info.volume_count,
+        info.is_manifold);
+
+    env->DeleteLocalRef(jfilename);
+    env->DeleteLocalRef(jformat);
+    env->DeleteLocalRef(cls);
+    return obj;
+}
+
+} // namespace sapil
