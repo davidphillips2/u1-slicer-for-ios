@@ -81,7 +81,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 } else {
                     _state.value = SlicerState.Error("Failed to load model")
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _state.value = SlicerState.Error("Error: ${e.message}")
             }
         }

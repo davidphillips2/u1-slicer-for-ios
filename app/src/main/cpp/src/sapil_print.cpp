@@ -58,8 +58,11 @@ static void applyConfigToPrusa(Slic3r::DynamicPrintConfig& dpc, const SliceConfi
 
     dpc.set_key_value("fill_pattern", new Slic3r::ConfigOptionEnum<Slic3r::InfillPattern>(pattern));
 
+    // Infill density (percent 0-100)
+    dpc.set_key_value("fill_density", new Slic3r::ConfigOptionPercent(config.fill_density * 100.0));
+
     // Speed
-    dpc.set_key_value("perimeter_speed", new Slic3r::ConfigOptionFloatOrPercent(config.print_speed, false));
+    dpc.set_key_value("perimeter_speed", new Slic3r::ConfigOptionFloat(config.print_speed));
     dpc.set_key_value("travel_speed", new Slic3r::ConfigOptionFloat(config.travel_speed));
     dpc.set_key_value("first_layer_speed", new Slic3r::ConfigOptionFloatOrPercent(config.first_layer_speed, false));
 

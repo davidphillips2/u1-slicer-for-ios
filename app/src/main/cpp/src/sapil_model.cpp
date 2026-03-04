@@ -131,7 +131,7 @@ jobject modelInfoToJava(JNIEnv* env, const ModelInfo& info) {
     }
 
     jmethodID constructor = env->GetMethodID(cls, "<init>",
-        "(Ljava/lang/String;Ljava/lang/String;FFFIIIZ)V");
+        "(Ljava/lang/String;Ljava/lang/String;FFFIIZ)V");
     if (!constructor) {
         SAPIL_LOGE("ModelInfo constructor not found");
         return nullptr;
