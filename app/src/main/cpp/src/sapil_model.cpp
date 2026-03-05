@@ -140,11 +140,19 @@ jobject modelInfoToJava(JNIEnv* env, const ModelInfo& info) {
     jstring jfilename = env->NewStringUTF(info.filename.c_str());
     jstring jformat = env->NewStringUTF(info.format.c_str());
 
-    jobject obj = env->NewObject(cls, constructor,
-        jfilename, jformat,
-        info.size_x, info.size_y, info.size_z,
-        info.triangle_count, info.volume_count,
-        info.is_manifold);
+    // Use NewObjectA (jvalue array) instead of NewObject (varargs) to avoid
+    // C++ float→double promotion in variadic calls, which shifts subsequent
+    // arguments and causes the jboolean parameter to read garbage.
+    jvalue args[8];
+    args[0].l = jfilename;
+    args[1].l = jformat;
+    args[2].f = info.size_x;
+    args[3].f = info.size_y;
+    args[4].f = info.size_z;
+    args[5].i = info.triangle_count;
+    args[6].i = info.volume_count;
+    args[7].z = info.is_manifold ? JNI_TRUE : JNI_FALSE;
+    jobject obj = env->NewObjectA(cls, constructor, args);
 
     env->DeleteLocalRef(jfilename);
     env->DeleteLocalRef(jformat);
