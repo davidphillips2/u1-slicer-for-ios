@@ -49,6 +49,22 @@ android {
 
     ndkVersion "26.1.10909125"
 
+    // Ensure the CMake-built .so overwrites the jniLibs pre-built after every native build.
+    // This keeps jniLibs in sync so it's packaged correctly without needing git-lfs.
+    tasks.whenTaskAdded { task ->
+        if (task.name.startsWith("buildCMakeDebug") || task.name.startsWith("buildCMakeRelWithDebInfo")) {
+            task.doLast {
+                def src = new File("${projectDir}/build/intermediates/cmake/debug/obj/arm64-v8a/libprusaslicer-jni.so")
+                def dst = new File("${projectDir}/src/main/jniLibs/arm64-v8a/libprusaslicer-jni.so")
+                if (src.exists()) {
+                    dst.parentFile.mkdirs()
+                    dst.bytes = src.bytes
+                    println "Synced CMake .so to jniLibs (${src.length() / 1_000_000}MB)"
+                }
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
