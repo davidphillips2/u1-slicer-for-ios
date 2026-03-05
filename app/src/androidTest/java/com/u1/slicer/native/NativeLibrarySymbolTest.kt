@@ -54,11 +54,11 @@ class NativeLibrarySymbolTest {
 
     @Test
     fun getModelInfo_isLinked() {
-        // getModelInfo() returns an empty ModelInfo (not null) when no model is loaded.
-        // Just verify the symbol is linked (no UnsatisfiedLinkError) and the result is non-null.
+        // Symbol linkage check only — empty model (all-zero floats) does NOT exercise
+        // the JNI float→double promotion bug because zero bytes are the same regardless
+        // of promotion width. See NativeLibraryCorrectnessTest for the full regression.
         lib.clearModel()
         val info = lib.getModelInfo()
-        // Symbol linked — result may be empty struct (filename="") with no model loaded
         assertNotNull(info)
     }
 
