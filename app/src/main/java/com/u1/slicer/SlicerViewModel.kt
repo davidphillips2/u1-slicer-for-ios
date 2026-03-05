@@ -86,6 +86,12 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     private val _copyCount = MutableStateFlow(1)
     val copyCount: StateFlow<Int> = _copyCount.asStateFlow()
 
+    // Custom object positions set from PlacementViewer (null = use auto grid)
+    // Flat array [x0,y0,x1,y1,...] in mm
+    private var customObjectPositions: FloatArray? = null
+    // Custom wipe tower position (null = use config defaults)
+    private var customWipeTowerPos: Pair<Float, Float>? = null
+
     private val makerWorldClient = MakerWorldClient()
 
     // Filament library
@@ -319,6 +325,26 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             CopyArrangeCalculator.maxCopies(mi.sizeX, mi.sizeY)
         else 16
         _copyCount.value = count.coerceIn(1, max)
+        customObjectPositions = null // reset custom positions when count changes
+    }
+
+    /** Called from PlacementViewerScreen when user confirms positions. */
+    fun applyPlacementPositions(positions: FloatArray, wipeTowerPos: Pair<Float, Float>) {
+        customObjectPositions = positions
+        customWipeTowerPos = wipeTowerPos
+        // Also update wipe tower config with new position
+        _config.value = _config.value.copy(
+            wipeTowerX = wipeTowerPos.first,
+            wipeTowerY = wipeTowerPos.second
+        )
+        Log.i("SlicerVM", "Custom placement applied: ${positions.size / 2} objects, tower=(${wipeTowerPos.first},${wipeTowerPos.second})")
+    }
+
+    /** Returns initial positions for PlacementViewerScreen (custom or auto-calculated). */
+    fun getPlacementPositions(): FloatArray {
+        customObjectPositions?.let { return it }
+        val mi = lastModelInfo ?: return floatArrayOf(5f, 5f)
+        return CopyArrangeCalculator.calculate(mi.sizeX, mi.sizeY, _copyCount.value)
     }
 
     fun updateConfig(updater: (SliceConfig) -> SliceConfig) {
@@ -339,14 +365,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
             _state.value = SlicerState.Slicing(0, "Preparing...")
 
-            // Apply multiple copies if requested (>1 copy)
+            // Apply object positions (custom from placement viewer, or auto grid if copies > 1)
             val copies = _copyCount.value
-            if (copies > 1) {
+            val custom = customObjectPositions
+            if (custom != null) {
+                native.setModelInstances(custom)
+                Log.i("SlicerVM", "Using custom placement: ${custom.size / 2} instances")
+            } else if (copies > 1) {
                 val mi = lastModelInfo
                 if (mi != null && mi.sizeX > 0f && mi.sizeY > 0f) {
                     val positions = CopyArrangeCalculator.calculate(mi.sizeX, mi.sizeY, copies)
                     native.setModelInstances(positions)
-                    Log.i("SlicerVM", "Arranged $copies copies in grid (${positions.size / 2} actual)")
+                    Log.i("SlicerVM", "Auto-arranged $copies copies in grid (${positions.size / 2} actual)")
                 }
             }
 
@@ -463,6 +493,8 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         currentModelFile = null
         lastModelInfo = null
         _copyCount.value = 1
+        customObjectPositions = null
+        customWipeTowerPos = null
         // Reset multi-extruder config to single extruder
         _config.value = _config.value.copy(
             extruderCount = 1,

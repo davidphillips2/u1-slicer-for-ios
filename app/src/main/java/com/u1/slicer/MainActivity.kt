@@ -113,6 +113,7 @@ class MainActivity : ComponentActivity() {
                             onNavigateGcodeViewer = { navController.navigate(Routes.GCODE_VIEWER) },
                             onNavigateGcodeViewer3D = { navController.navigate(Routes.GCODE_VIEWER_3D) },
                             onNavigateModelViewer = { navController.navigate(Routes.MODEL_VIEWER) },
+                            onNavigatePlacementViewer = { navController.navigate(Routes.PLACEMENT_VIEWER) },
                             onShareGcode = { viewModel.shareGcode() },
                             onSaveGcode = { gcodeSaveLauncher.launch("output.gcode") }
                         )
@@ -161,6 +162,7 @@ fun SlicerScreen(
     onNavigateGcodeViewer: () -> Unit,
     onNavigateGcodeViewer3D: () -> Unit,
     onNavigateModelViewer: () -> Unit,
+    onNavigatePlacementViewer: () -> Unit,
     onShareGcode: () -> Unit,
     onSaveGcode: () -> Unit
 ) {
@@ -328,6 +330,16 @@ fun SlicerScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("3D Preview")
                         }
+                    }
+                    // Arrange button — always available when model is loaded
+                    OutlinedButton(
+                        onClick = onNavigatePlacementViewer,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.GridOn, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Arrange on Bed")
                     }
                     ConfigCard(config, viewModel::updateConfig, copyCount, viewModel::setCopyCount)
                     SliceButton(onClick = { viewModel.startSlicing() })

@@ -14,6 +14,7 @@ import com.u1.slicer.ui.GcodeViewer3DScreen
 import com.u1.slicer.ui.GcodeViewerScreen
 import com.u1.slicer.ui.JobsScreen
 import com.u1.slicer.ui.ModelViewerScreen
+import com.u1.slicer.ui.PlacementViewerScreen
 import com.u1.slicer.ui.PrinterScreen
 import com.u1.slicer.ui.SettingsScreen
 
@@ -26,6 +27,7 @@ object Routes {
     const val GCODE_VIEWER = "gcode_viewer"
     const val GCODE_VIEWER_3D = "gcode_viewer_3d"
     const val MODEL_VIEWER = "model_viewer"
+    const val PLACEMENT_VIEWER = "placement_viewer"
 }
 
 @Composable
@@ -100,6 +102,26 @@ fun U1NavGraph(
             if (modelPath != null) {
                 ModelViewerScreen(
                     modelFilePath = modelPath,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+        composable(Routes.PLACEMENT_VIEWER) {
+            val config by viewModel.config.collectAsState()
+            val copyCount by viewModel.copyCount.collectAsState()
+            val modelInfo = (viewModel.state.collectAsState().value as? SlicerViewModel.SlicerState.ModelLoaded)?.info
+            if (modelInfo != null) {
+                PlacementViewerScreen(
+                    modelInfo = modelInfo,
+                    copyCount = copyCount,
+                    wipeTowerEnabled = config.wipeTowerEnabled,
+                    wipeTowerWidthMm = config.wipeTowerWidth,
+                    initialObjectPositions = viewModel.getPlacementPositions(),
+                    initialWipeTowerPos = Pair(config.wipeTowerX, config.wipeTowerY),
+                    onApply = { positions, towerPos ->
+                        viewModel.applyPlacementPositions(positions, towerPos)
+                        navController.popBackStack()
+                    },
                     onBack = { navController.popBackStack() }
                 )
             }
