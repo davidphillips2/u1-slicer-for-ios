@@ -55,10 +55,10 @@ struct SliceConfig {
     float skirt_distance = 6.0f;
     float brim_width = 0.0f;
 
-    // Printer bed
-    float bed_size_x = 250.0f;
-    float bed_size_y = 210.0f;
-    float max_print_height = 210.0f;
+    // Printer bed (Snapmaker U1: 270x270x270mm)
+    float bed_size_x = 270.0f;
+    float bed_size_y = 270.0f;
+    float max_print_height = 270.0f;
 
     // Nozzle
     float nozzle_diameter = 0.4f;

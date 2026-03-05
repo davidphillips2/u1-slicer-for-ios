@@ -57,7 +57,20 @@ bash scripts/build_deps.sh
 
 ## Status
 
-🟢 **Phase 2 Complete** — The PrusaSlicer 2.8.x core and JNI bridge (SAPIL) are fully integrated, compiled, and linked. `libprusaslicer-jni.so` is built and deployed. The project is ready for Phase 3 (Android application verification).
+Phases 1-2, 4-5, 7-10 complete. See [native-so-build.md](native-so-build.md) for native .so build details.
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| 1 | Done | Foundation: navigation, settings, G-code export/share |
+| 2 | Done | Bambu 3MF sanitization + multi-plate support |
+| 3 | Next | Multi-extruder/multi-color (needs native rebuild) |
+| 4 | Done | Moonraker printer connectivity |
+| 5 | Done | Filament library (Room DB), enhanced settings, job history |
+| 6 | Partial | MakerWorld import (download only); copies need native rebuild |
+| 7 | Done | 2D G-code layer viewer |
+| 8 | Done | 3D model viewer (OpenGL ES 3.0) |
+| 9 | Done | 3D G-code viewer (OpenGL ES 3.0) |
+| 10 | Done | Plate preview thumbnails |
 
 ## Credits
 - [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) — Core slicing engine

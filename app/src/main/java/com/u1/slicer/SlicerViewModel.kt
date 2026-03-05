@@ -1,27 +1,39 @@
 package com.u1.slicer
 
 import android.app.Application
+import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import android.util.Log
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.u1.slicer.bambu.BambuSanitizer
+import com.u1.slicer.bambu.ThreeMfInfo
+import com.u1.slicer.bambu.ThreeMfParser
+import com.u1.slicer.data.FilamentProfile
+import com.u1.slicer.gcode.GcodeParser
+import com.u1.slicer.gcode.ParsedGcode
+import com.u1.slicer.network.MakerWorldClient
 import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceConfig
+import com.u1.slicer.data.SliceJob
 import com.u1.slicer.data.SliceResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 
-/**
- * ViewModel for the main slicing screen.
- * Manages the slicing pipeline: load model → configure → slice → view G-code.
- */
 class SlicerViewModel(application: Application) : AndroidViewModel(application) {
 
     private val native = NativeLibrary()
+    private val container = (application as U1SlicerApplication).container
+    private val settingsRepo = container.settingsRepository
+    private val filamentDao = container.filamentDao
+    private val sliceJobDao = container.sliceJobDao
 
     // ---- UI State ----
     sealed class SlicerState {
@@ -44,12 +56,100 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     private val _gcodePreview = MutableStateFlow("")
     val gcodePreview: StateFlow<String> = _gcodePreview.asStateFlow()
 
+    private val _parsedGcode = MutableStateFlow<ParsedGcode?>(null)
+    val parsedGcode: StateFlow<ParsedGcode?> = _parsedGcode.asStateFlow()
+
+    // Bambu / multi-plate state
+    private val _threeMfInfo = MutableStateFlow<ThreeMfInfo?>(null)
+    val threeMfInfo: StateFlow<ThreeMfInfo?> = _threeMfInfo.asStateFlow()
+
+    private val _showPlateSelector = MutableStateFlow(false)
+    val showPlateSelector: StateFlow<Boolean> = _showPlateSelector.asStateFlow()
+
+    // MakerWorld import state
+    private val _importLoading = MutableStateFlow(false)
+    val importLoading: StateFlow<Boolean> = _importLoading.asStateFlow()
+
+    private val _importProgress = MutableStateFlow(0)
+    val importProgress: StateFlow<Int> = _importProgress.asStateFlow()
+
+    private val _importError = MutableStateFlow<String?>(null)
+    val importError: StateFlow<String?> = _importError.asStateFlow()
+
+    private val makerWorldClient = MakerWorldClient()
+
+    // Filament library
+    val filaments = filamentDao.getAll()
+
+    // Job history
+    val sliceJobs = sliceJobDao.getAll()
+
+    // Track the current working file (may be sanitized copy)
+    private var currentModelFile: File? = null
+    private var currentModelName: String = ""
+
+    /** Exposed for 3D viewer navigation */
+    val currentModelPath: String? get() = currentModelFile?.absolutePath
+
     init {
         _coreVersion.value = if (NativeLibrary.isLoaded) {
             native.getCoreVersion()
         } else {
             "Native library not available"
         }
+
+        viewModelScope.launch {
+            val saved = settingsRepo.sliceConfig.first()
+            _config.value = saved
+        }
+    }
+
+    fun importFromUrl(urlOrId: String) {
+        if (!NativeLibrary.isLoaded) {
+            _state.value = SlicerState.Error("Native slicer library not available on this device (arm64 required)")
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            _importLoading.value = true
+            _importError.value = null
+            _importProgress.value = 0
+            try {
+                val context = getApplication<Application>()
+                val result = makerWorldClient.download(
+                    urlOrId = urlOrId,
+                    outputDir = context.filesDir,
+                    onProgress = { _importProgress.value = it }
+                )
+
+                _importLoading.value = false
+                currentModelName = result.filename
+
+                // Process through the same 3MF pipeline (sanitize, plate detection, etc.)
+                val info = ThreeMfParser.parse(result.file)
+                _threeMfInfo.value = info
+
+                Log.i("SlicerVM", "MakerWorld 3MF: bambu=${info.isBambu}, multiPlate=${info.isMultiPlate}")
+
+                val sanitized = BambuSanitizer.process(result.file, context.filesDir)
+
+                if (info.isMultiPlate && info.plates.size > 1) {
+                    currentModelFile = sanitized
+                    _showPlateSelector.value = true
+                    return@launch
+                }
+
+                currentModelFile = sanitized
+                loadNativeModel(sanitized)
+            } catch (e: Throwable) {
+                _importLoading.value = false
+                _importError.value = e.message ?: "Download failed"
+                Log.e("SlicerVM", "MakerWorld import failed", e)
+            }
+        }
+    }
+
+    fun clearImportError() {
+        _importError.value = null
     }
 
     fun loadModel(uri: Uri) {
@@ -59,7 +159,6 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Copy URI content to internal storage
                 val context = getApplication<Application>()
                 val inputStream = context.contentResolver.openInputStream(uri) ?: run {
                     _state.value = SlicerState.Error("Could not open file")
@@ -67,28 +166,115 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val filename = getDisplayName(context, uri) ?: "model.stl"
+                currentModelName = filename
                 val file = File(context.filesDir, filename)
-                file.outputStream().use { inputStream.copyTo(it) }
-
-                val success = native.loadModel(file.absolutePath)
-                if (success) {
-                    val info = native.getModelInfo()
-                    if (info != null) {
-                        _state.value = SlicerState.ModelLoaded(info)
-                    } else {
-                        _state.value = SlicerState.Error("Failed to read model info")
-                    }
-                } else {
-                    _state.value = SlicerState.Error("Failed to load model")
+                // Copy via temp file to avoid self-referential truncation
+                // when the source URI points to our own FileProvider
+                val tmpFile = File(context.cacheDir, "import_${System.currentTimeMillis()}")
+                try {
+                    tmpFile.outputStream().use { inputStream.copyTo(it) }
+                    tmpFile.copyTo(file, overwrite = true)
+                } finally {
+                    tmpFile.delete()
                 }
+
+                // For 3MF files: parse metadata and sanitize if Bambu
+                val fileToLoad = if (filename.endsWith(".3mf", ignoreCase = true)) {
+                    // Verify it's a valid ZIP first
+                    try {
+                        java.util.zip.ZipFile(file).use { zip ->
+                            if (zip.entries().toList().isEmpty()) {
+                                _state.value = SlicerState.Error("3MF file is empty or invalid")
+                                return@launch
+                            }
+                        }
+                    } catch (e: java.util.zip.ZipException) {
+                        _state.value = SlicerState.Error("3MF file is corrupt: ${e.message}")
+                        return@launch
+                    }
+
+                    val info = ThreeMfParser.parse(file)
+                    _threeMfInfo.value = info
+
+                    Log.i("SlicerVM", "3MF: bambu=${info.isBambu}, multiPlate=${info.isMultiPlate}, " +
+                        "colors=${info.detectedColors.size}, extruders=${info.detectedExtruderCount}, " +
+                        "paint=${info.hasPaintData}, toolChanges=${info.hasLayerToolChanges}")
+
+                    // Sanitize Bambu files
+                    val sanitized = BambuSanitizer.process(file, context.filesDir)
+
+                    // Show plate selector for multi-plate files
+                    if (info.isMultiPlate && info.plates.size > 1) {
+                        currentModelFile = sanitized
+                        _showPlateSelector.value = true
+                        // Don't load yet — wait for plate selection
+                        return@launch
+                    }
+
+                    sanitized
+                } else {
+                    _threeMfInfo.value = null
+                    file
+                }
+
+                currentModelFile = fileToLoad
+                loadNativeModel(fileToLoad)
             } catch (e: Throwable) {
                 _state.value = SlicerState.Error("Error: ${e.message}")
             }
         }
     }
 
+    /**
+     * Called when user selects a plate from the multi-plate dialog.
+     */
+    fun selectPlate(plateId: Int) {
+        _showPlateSelector.value = false
+        val file = currentModelFile ?: return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>()
+                val plateFile = BambuSanitizer.extractPlate(file, plateId, context.filesDir)
+                currentModelFile = plateFile
+                loadNativeModel(plateFile)
+            } catch (e: Throwable) {
+                _state.value = SlicerState.Error("Error extracting plate: ${e.message}")
+            }
+        }
+    }
+
+    fun dismissPlateSelector() {
+        _showPlateSelector.value = false
+        // Load all plates (first plate by default)
+        val file = currentModelFile ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            loadNativeModel(file)
+        }
+    }
+
+    private fun loadNativeModel(file: File) {
+        val success = native.loadModel(file.absolutePath)
+        if (success) {
+            val info = native.getModelInfo()
+            if (info != null) {
+                _state.value = SlicerState.ModelLoaded(info)
+            } else {
+                _state.value = SlicerState.Error("Failed to read model info")
+            }
+        } else {
+            _state.value = SlicerState.Error("Failed to load model")
+        }
+    }
+
     fun updateConfig(updater: (SliceConfig) -> SliceConfig) {
         _config.value = updater(_config.value)
+    }
+
+    fun saveConfig() {
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepo.saveSliceConfig(_config.value)
+        }
     }
 
     fun startSlicing() {
@@ -105,21 +291,154 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             if (result != null && result.success) {
                 _state.value = SlicerState.SliceComplete(result)
                 _gcodePreview.value = native.getGcodePreview(50)
+                // Parse G-code for layer viewer
+                try {
+                    _parsedGcode.value = GcodeParser.parse(File(result.gcodePath))
+                } catch (e: Throwable) {
+                    Log.w("SlicerVM", "G-code parse failed: ${e.message}")
+                }
+                settingsRepo.saveSliceConfig(_config.value)
+                // Save job to history
+                val cfg = _config.value
+                sliceJobDao.insert(
+                    SliceJob(
+                        modelName = currentModelName.ifEmpty { "Unknown" },
+                        gcodePath = result.gcodePath,
+                        totalLayers = result.totalLayers,
+                        estimatedTimeSeconds = result.estimatedTimeSeconds,
+                        estimatedFilamentMm = result.estimatedFilamentMm,
+                        layerHeight = cfg.layerHeight,
+                        fillDensity = cfg.fillDensity,
+                        nozzleTemp = cfg.nozzleTemp,
+                        bedTemp = cfg.bedTemp,
+                        supportEnabled = cfg.supportEnabled,
+                        filamentType = cfg.filamentType
+                    )
+                )
             } else {
                 _state.value = SlicerState.Error(result?.errorMessage ?: "Slicing failed")
             }
         }
     }
 
+    // ---- Filament Library ----
+    fun addFilament(profile: FilamentProfile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            filamentDao.insert(profile)
+        }
+    }
+
+    fun updateFilament(profile: FilamentProfile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            filamentDao.update(profile)
+        }
+    }
+
+    fun deleteFilament(profile: FilamentProfile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            filamentDao.delete(profile)
+        }
+    }
+
+    fun applyFilament(profile: FilamentProfile) {
+        updateConfig {
+            it.copy(
+                nozzleTemp = profile.nozzleTemp,
+                bedTemp = profile.bedTemp,
+                printSpeed = profile.printSpeed,
+                retractLength = profile.retractLength,
+                retractSpeed = profile.retractSpeed,
+                filamentType = profile.material
+            )
+        }
+    }
+
+    // ---- Job History ----
+    fun deleteJob(job: SliceJob) {
+        viewModelScope.launch(Dispatchers.IO) {
+            sliceJobDao.delete(job)
+        }
+    }
+
+    fun deleteAllJobs() {
+        viewModelScope.launch(Dispatchers.IO) {
+            sliceJobDao.deleteAll()
+        }
+    }
+
+    fun shareJobGcode(job: SliceJob) {
+        val context = getApplication<Application>()
+        val gcodeFile = File(job.gcodePath)
+        if (!gcodeFile.exists()) return
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            gcodeFile
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share G-code").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
     fun clearModel() {
         native.clearModel()
         _state.value = SlicerState.Idle
         _gcodePreview.value = ""
+        _parsedGcode.value = null
+        _threeMfInfo.value = null
+        _showPlateSelector.value = false
+        currentModelFile = null
     }
 
     fun loadProfile(path: String) {
         viewModelScope.launch(Dispatchers.IO) {
             native.loadProfile(path)
+        }
+    }
+
+    fun shareGcode() {
+        val state = _state.value
+        if (state !is SlicerState.SliceComplete) return
+
+        val context = getApplication<Application>()
+        val gcodeFile = File(state.result.gcodePath)
+        if (!gcodeFile.exists()) return
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            gcodeFile
+        )
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/octet-stream"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share G-code").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    fun saveGcodeTo(uri: Uri) {
+        val state = _state.value
+        if (state !is SlicerState.SliceComplete) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = getApplication<Application>()
+                val gcodeFile = File(state.result.gcodePath)
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    gcodeFile.inputStream().use { it.copyTo(out) }
+                }
+            } catch (_: Throwable) {
+                // Silent fail — user may have cancelled the save dialog
+            }
         }
     }
 
@@ -130,7 +449,6 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 if (idx >= 0) return cursor.getString(idx)
             }
         }
-        // Fallback: extract from path segment
         return uri.lastPathSegment?.substringAfterLast('/')?.substringAfterLast(':')
     }
 }

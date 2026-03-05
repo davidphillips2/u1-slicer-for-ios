@@ -1,5 +1,6 @@
 package com.u1.slicer
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,15 +19,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.compose.rememberNavController
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceResult
+import com.u1.slicer.navigation.U1NavGraph
+import com.u1.slicer.navigation.Routes
 
 class MainActivity : ComponentActivity() {
     private val viewModel: SlicerViewModel by viewModels()
@@ -37,23 +42,80 @@ class MainActivity : ComponentActivity() {
         uri?.let { viewModel.loadModel(it) }
     }
 
+    private val gcodeSaveLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        uri?.let { viewModel.saveGcodeTo(it) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        if (intent?.action == Intent.ACTION_VIEW) {
+            intent.data?.let { uri ->
+                viewModel.loadModel(uri)
+                // Clear the intent to prevent re-processing on recreation
+                intent.action = null
+                intent.data = null
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Only handle VIEW intents on fresh launch, not on recreation
+        if (savedInstanceState == null) {
+            handleIncomingIntent(intent)
+        }
         setContent {
             U1SlicerTheme {
-                SlicerScreen(
+                val navController = rememberNavController()
+                U1NavGraph(
+                    navController = navController,
                     viewModel = viewModel,
                     onPickFile = {
                         filePickerLauncher.launch(arrayOf(
-                            "application/sla",              // STL
+                            "application/sla",
                             "model/stl",
                             "application/vnd.ms-pki.stl",
-                            "application/octet-stream",     // generic binary
+                            "application/octet-stream",
                             "model/3mf",
                             "application/vnd.ms-3mfdocument",
                             "model/obj",
-                            "*/*"                           // fallback
+                            "*/*"
                         ))
+                    },
+                    onSaveGcode = {
+                        gcodeSaveLauncher.launch("output.gcode")
+                    },
+                    slicerContent = {
+                        SlicerScreen(
+                            viewModel = viewModel,
+                            onPickFile = {
+                                filePickerLauncher.launch(arrayOf(
+                                    "application/sla",
+                                    "model/stl",
+                                    "application/vnd.ms-pki.stl",
+                                    "application/octet-stream",
+                                    "model/3mf",
+                                    "application/vnd.ms-3mfdocument",
+                                    "model/obj",
+                                    "*/*"
+                                ))
+                            },
+                            onNavigateSettings = { navController.navigate(Routes.SETTINGS) },
+                            onNavigatePrinter = { navController.navigate(Routes.PRINTER) },
+                            onNavigateFilaments = { navController.navigate(Routes.FILAMENTS) },
+                            onNavigateJobs = { navController.navigate(Routes.JOBS) },
+                            onNavigateGcodeViewer = { navController.navigate(Routes.GCODE_VIEWER) },
+                            onNavigateGcodeViewer3D = { navController.navigate(Routes.GCODE_VIEWER_3D) },
+                            onNavigateModelViewer = { navController.navigate(Routes.MODEL_VIEWER) },
+                            onShareGcode = { viewModel.shareGcode() },
+                            onSaveGcode = { gcodeSaveLauncher.launch("output.gcode") }
+                        )
                     }
                 )
             }
@@ -67,7 +129,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun U1SlicerTheme(content: @Composable () -> Unit) {
     val darkColorScheme = darkColorScheme(
-        primary = Color(0xFFE87A00),        // Prusa orange
+        primary = Color(0xFFE87A00),
         onPrimary = Color.White,
         primaryContainer = Color(0xFF3D2000),
         secondary = Color(0xFF4FC3F7),
@@ -91,12 +153,61 @@ fun U1SlicerTheme(content: @Composable () -> Unit) {
 @Composable
 fun SlicerScreen(
     viewModel: SlicerViewModel,
-    onPickFile: () -> Unit
+    onPickFile: () -> Unit,
+    onNavigateSettings: () -> Unit,
+    onNavigatePrinter: () -> Unit,
+    onNavigateFilaments: () -> Unit,
+    onNavigateJobs: () -> Unit,
+    onNavigateGcodeViewer: () -> Unit,
+    onNavigateGcodeViewer3D: () -> Unit,
+    onNavigateModelViewer: () -> Unit,
+    onShareGcode: () -> Unit,
+    onSaveGcode: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val config by viewModel.config.collectAsState()
     val coreVersion by viewModel.coreVersion.collectAsState()
     val gcodePreview by viewModel.gcodePreview.collectAsState()
+    val parsedGcode by viewModel.parsedGcode.collectAsState()
+    val showPlateSelector by viewModel.showPlateSelector.collectAsState()
+    val threeMfInfo by viewModel.threeMfInfo.collectAsState()
+    val importLoading by viewModel.importLoading.collectAsState()
+    val importProgress by viewModel.importProgress.collectAsState()
+    val importError by viewModel.importError.collectAsState()
+    var showImportDialog by remember { mutableStateOf(false) }
+
+    // MakerWorld import dialog
+    if (showImportDialog) {
+        com.u1.slicer.ui.ImportUrlDialog(
+            isLoading = importLoading,
+            progress = importProgress,
+            error = importError,
+            onImport = { url ->
+                viewModel.importFromUrl(url)
+            },
+            onDismiss = {
+                showImportDialog = false
+                viewModel.clearImportError()
+            }
+        )
+    }
+
+    // Close dialog on successful import
+    LaunchedEffect(state) {
+        if (state is SlicerViewModel.SlicerState.ModelLoaded && showImportDialog) {
+            showImportDialog = false
+        }
+    }
+
+    // Plate selector dialog
+    if (showPlateSelector && threeMfInfo != null) {
+        com.u1.slicer.ui.PlateSelectDialog(
+            plates = threeMfInfo!!.plates,
+            onSelect = { viewModel.selectPlate(it) },
+            onDismiss = { viewModel.dismissPlateSelector() },
+            info = threeMfInfo
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -123,6 +234,42 @@ fun SlicerScreen(
                 }
             )
         },
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.ViewInAr, null) },
+                    label = { Text("Slicer") },
+                    selected = true,
+                    onClick = { }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Print, null) },
+                    label = { Text("Printer") },
+                    selected = false,
+                    onClick = onNavigatePrinter
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Palette, null) },
+                    label = { Text("Filaments") },
+                    selected = false,
+                    onClick = onNavigateFilaments
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.History, null) },
+                    label = { Text("Jobs") },
+                    selected = false,
+                    onClick = onNavigateJobs
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Settings, null) },
+                    label = { Text("Settings") },
+                    selected = false,
+                    onClick = onNavigateSettings
+                )
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
@@ -135,10 +282,28 @@ fun SlicerScreen(
         ) {
             when (val s = state) {
                 is SlicerViewModel.SlicerState.Idle -> {
-                    IdleContent(onPickFile)
+                    IdleContent(
+                        onPickFile = onPickFile,
+                        onImportUrl = { showImportDialog = true }
+                    )
                 }
                 is SlicerViewModel.SlicerState.ModelLoaded -> {
                     ModelInfoCard(s.info)
+                    if (threeMfInfo != null && threeMfInfo!!.isBambu) {
+                        BambuInfoCard(threeMfInfo!!)
+                    }
+                    // 3D Preview button (STL only for now)
+                    if (viewModel.currentModelPath?.endsWith(".stl", ignoreCase = true) == true) {
+                        OutlinedButton(
+                            onClick = onNavigateModelViewer,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Default.ViewInAr, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("3D Preview")
+                        }
+                    }
                     ConfigCard(config, viewModel::updateConfig)
                     SliceButton(onClick = { viewModel.startSlicing() })
                 }
@@ -146,7 +311,37 @@ fun SlicerScreen(
                     SlicingProgressCard(s.progress, s.stage)
                 }
                 is SlicerViewModel.SlicerState.SliceComplete -> {
-                    SliceCompleteCard(s.result)
+                    SliceCompleteCard(
+                        result = s.result,
+                        onShare = onShareGcode,
+                        onSave = onSaveGcode,
+                        onSendToPrinter = onNavigatePrinter
+                    )
+                    if (parsedGcode != null && parsedGcode!!.layers.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = onNavigateGcodeViewer,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Layers, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("2D Layers")
+                            }
+                            OutlinedButton(
+                                onClick = onNavigateGcodeViewer3D,
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.ViewInAr, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(4.dp))
+                                Text("3D View")
+                            }
+                        }
+                    }
                     if (gcodePreview.isNotEmpty()) {
                         GcodePreviewCard(gcodePreview)
                     }
@@ -164,7 +359,7 @@ fun SlicerScreen(
 // =============================================================================
 
 @Composable
-fun IdleContent(onPickFile: () -> Unit) {
+fun IdleContent(onPickFile: () -> Unit, onImportUrl: () -> Unit = {}) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -208,6 +403,15 @@ fun IdleContent(onPickFile: () -> Unit) {
                 Spacer(Modifier.width(8.dp))
                 Text("Browse Files")
             }
+            OutlinedButton(
+                onClick = onImportUrl,
+                modifier = Modifier.fillMaxWidth(0.6f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.Language, null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("MakerWorld")
+            }
         }
     }
 }
@@ -235,7 +439,7 @@ fun ModelInfoCard(info: ModelInfo) {
             InfoRow("Dimensions", info.dimensionString)
             InfoRow("Triangles", "%,d".format(info.triangleCount))
             InfoRow("Volumes", info.volumeCount.toString())
-            InfoRow("Manifold", if (info.isManifold) "✓ Yes" else "✗ No")
+            InfoRow("Manifold", if (info.isManifold) "Yes" else "No")
         }
     }
 }
@@ -315,12 +519,73 @@ fun ConfigCard(
                         steps = 19
                     )
 
+                    // Infill pattern dropdown
+                    InfillPatternDropdown(
+                        selected = config.fillPattern,
+                        onSelect = { v -> onUpdate { it.copy(fillPattern = v) } }
+                    )
+
                     Text("Perimeters", style = MaterialTheme.typography.labelMedium)
                     Slider(
                         value = config.perimeters.toFloat(),
                         onValueChange = { v -> onUpdate { it.copy(perimeters = v.toInt()) } },
                         valueRange = 1f..6f,
                         steps = 4
+                    )
+
+                    Text("Top Solid Layers: ${config.topSolidLayers}", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = config.topSolidLayers.toFloat(),
+                        onValueChange = { v -> onUpdate { it.copy(topSolidLayers = v.toInt()) } },
+                        valueRange = 0f..10f,
+                        steps = 9
+                    )
+
+                    Text("Bottom Solid Layers: ${config.bottomSolidLayers}", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = config.bottomSolidLayers.toFloat(),
+                        onValueChange = { v -> onUpdate { it.copy(bottomSolidLayers = v.toInt()) } },
+                        valueRange = 0f..10f,
+                        steps = 9
+                    )
+
+                    // Temperature fields
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        ConfigTextField(
+                            label = "Nozzle \u00B0C",
+                            value = config.nozzleTemp.toString(),
+                            onValueChange = { v ->
+                                v.toIntOrNull()?.let { temp -> onUpdate { it.copy(nozzleTemp = temp) } }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                        ConfigTextField(
+                            label = "Bed \u00B0C",
+                            value = config.bedTemp.toString(),
+                            onValueChange = { v ->
+                                v.toIntOrNull()?.let { temp -> onUpdate { it.copy(bedTemp = temp) } }
+                            },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // Speed field
+                    ConfigTextField(
+                        label = "Print Speed (mm/s)",
+                        value = config.printSpeed.toInt().toString(),
+                        onValueChange = { v ->
+                            v.toFloatOrNull()?.let { spd -> onUpdate { it.copy(printSpeed = spd) } }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Brim width
+                    Text("Brim Width: ${"%.1f".format(config.brimWidth)} mm", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = config.brimWidth,
+                        onValueChange = { v -> onUpdate { it.copy(brimWidth = v) } },
+                        valueRange = 0f..20f,
+                        steps = 19
                     )
 
                     Row(
@@ -335,10 +600,9 @@ fun ConfigCard(
                         )
                     }
 
-                    InfoRow("Nozzle Temp", "${config.nozzleTemp}°C")
-                    InfoRow("Bed Temp", "${config.bedTemp}°C")
                     InfoRow("Nozzle Diameter", "${config.nozzleDiameter} mm")
                     InfoRow("Filament", config.filamentType)
+                    InfoRow("Build Volume", "270 x 270 x 270 mm")
                 }
             }
         }
@@ -352,6 +616,62 @@ fun QuickStat(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InfillPatternDropdown(selected: String, onSelect: (String) -> Unit) {
+    val patterns = listOf("gyroid", "grid", "honeycomb", "line", "rectilinear", "triangles", "cubic")
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = it }
+    ) {
+        OutlinedTextField(
+            value = selected,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Infill Pattern") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier.fillMaxWidth().menuAnchor()
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            patterns.forEach { pattern ->
+                DropdownMenuItem(
+                    text = { Text(pattern.replaceFirstChar { it.uppercase() }) },
+                    onClick = {
+                        onSelect(pattern)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ConfigTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) { mutableStateOf(value) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            onValueChange(it)
+        },
+        label = { Text(label) },
+        modifier = modifier,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true
+    )
 }
 
 @Composable
@@ -400,7 +720,12 @@ fun SlicingProgressCard(progress: Int, stage: String) {
 }
 
 @Composable
-fun SliceCompleteCard(result: SliceResult) {
+fun SliceCompleteCard(
+    result: SliceResult,
+    onShare: () -> Unit,
+    onSave: () -> Unit,
+    onSendToPrinter: () -> Unit = {}
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -422,6 +747,46 @@ fun SliceCompleteCard(result: SliceResult) {
             InfoRow("Layers", result.totalLayers.toString())
             InfoRow("Est. Time", result.estimatedTimeFormatted)
             InfoRow("Filament", result.estimatedFilamentFormatted)
+
+            Spacer(Modifier.height(4.dp))
+
+            // Action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onShare,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Share, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Share")
+                }
+                OutlinedButton(
+                    onClick = onSave,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.SaveAlt, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Save")
+                }
+            }
+
+            Button(
+                onClick = onSendToPrinter,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(Icons.Default.Print, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Send to Printer", fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -457,6 +822,44 @@ fun GcodePreviewCard(gcode: String) {
                     maxLines = 30,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun BambuInfoCard(info: com.u1.slicer.bambu.ThreeMfInfo) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1A2A3D)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, null, tint = Color(0xFF4FC3F7))
+                Spacer(Modifier.width(8.dp))
+                Text("Bambu Studio File", fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                    color = Color(0xFF4FC3F7))
+                Spacer(Modifier.width(4.dp))
+                Text("(sanitized)", style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF4FC3F7).copy(alpha = 0.6f))
+            }
+            if (info.detectedExtruderCount > 1) {
+                InfoRow("Extruders Detected", info.detectedExtruderCount.toString())
+            }
+            if (info.detectedColors.isNotEmpty()) {
+                InfoRow("Colors", info.detectedColors.joinToString(", "))
+            }
+            if (info.hasPaintData) {
+                InfoRow("Paint Data", "Yes (per-triangle)")
+            }
+            if (info.isMultiPlate) {
+                InfoRow("Plates", info.plates.size.toString())
             }
         }
     }

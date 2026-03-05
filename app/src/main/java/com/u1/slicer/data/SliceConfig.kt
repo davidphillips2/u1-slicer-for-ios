@@ -37,10 +37,10 @@ data class SliceConfig(
     @JvmField var skirtDistance: Float = 6f,
     @JvmField var brimWidth: Float = 0f,
 
-    // Printer bed
-    @JvmField var bedSizeX: Float = 250f,
-    @JvmField var bedSizeY: Float = 210f,
-    @JvmField var maxPrintHeight: Float = 210f,
+    // Printer bed (Snapmaker U1: 270x270x270mm)
+    @JvmField var bedSizeX: Float = 270f,
+    @JvmField var bedSizeY: Float = 270f,
+    @JvmField var maxPrintHeight: Float = 270f,
 
     // Nozzle
     @JvmField var nozzleDiameter: Float = 0.4f,
