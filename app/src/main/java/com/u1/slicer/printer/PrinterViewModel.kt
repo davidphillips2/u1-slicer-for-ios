@@ -29,7 +29,7 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
         object Unknown : ConnectionState()
         object Testing : ConnectionState()
         object Connected : ConnectionState()
-        object Failed : ConnectionState()
+        data class Failed(val reason: String) : ConnectionState()
     }
 
     sealed class SendingState {
@@ -53,8 +53,9 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
     fun testConnection() {
         _connectionState.value = ConnectionState.Testing
         viewModelScope.launch(Dispatchers.IO) {
-            val ok = printerRepo.testConnection()
-            _connectionState.value = if (ok) ConnectionState.Connected else ConnectionState.Failed
+            val error = printerRepo.testConnection()
+            _connectionState.value = if (error == null) ConnectionState.Connected
+                                     else ConnectionState.Failed(error)
         }
     }
 

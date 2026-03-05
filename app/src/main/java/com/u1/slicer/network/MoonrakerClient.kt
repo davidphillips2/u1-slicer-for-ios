@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -34,18 +35,29 @@ class MoonrakerClient {
 
     /**
      * Test connection to the printer.
+     * @return null on success, or a human-readable error string on failure.
      */
-    suspend fun testConnection(): Boolean = withContext(Dispatchers.IO) {
-        if (baseUrl.isBlank()) return@withContext false
+    suspend fun testConnection(): String? = withContext(Dispatchers.IO) {
+        if (baseUrl.isBlank()) return@withContext "No URL configured"
+        if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+            return@withContext "URL must start with http:// or https://"
+        }
         try {
             val request = Request.Builder().url(url("/server/info")).get().build()
             val response = client.newCall(request).execute()
             val ok = response.isSuccessful
+            val code = response.code
             response.close()
-            ok
+            if (ok) null else "HTTP $code — is Moonraker running on this address?"
+        } catch (e: java.net.ConnectException) {
+            "Connection refused — check IP and port (Moonraker default: 7125)"
+        } catch (e: java.net.SocketTimeoutException) {
+            "Timed out — check printer is on and reachable"
+        } catch (e: java.net.UnknownHostException) {
+            "Unknown host — check URL"
         } catch (e: Exception) {
             Log.w(TAG, "Connection test failed: ${e.message}")
-            false
+            e.message?.take(100) ?: "Connection failed"
         }
     }
 
@@ -169,7 +181,7 @@ class MoonrakerClient {
         return try {
             val request = Request.Builder()
                 .url(url(path))
-                .post(RequestBody.create(null, ByteArray(0)))
+                .post(ByteArray(0).toRequestBody(null))
                 .build()
             val response = client.newCall(request).execute()
             val ok = response.isSuccessful

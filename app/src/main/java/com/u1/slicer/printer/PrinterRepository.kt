@@ -34,7 +34,8 @@ class PrinterRepository(
         settingsRepo.savePrinterUrl(url)
     }
 
-    suspend fun testConnection(): Boolean {
+    /** Returns null on success, or an error message string on failure. */
+    suspend fun testConnection(): String? {
         return client.testConnection()
     }
 

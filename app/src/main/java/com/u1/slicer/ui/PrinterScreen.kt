@@ -81,7 +81,8 @@ fun PrinterScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
                             onClick = {
@@ -94,7 +95,6 @@ fun PrinterScreen(
                             Text("Connect")
                         }
 
-                        // Connection status indicator
                         when (connectionState) {
                             is PrinterViewModel.ConnectionState.Testing -> {
                                 CircularProgressIndicator(
@@ -107,12 +107,24 @@ fun PrinterScreen(
                                     tint = Color(0xFF4CAF50),
                                     modifier = Modifier.size(36.dp))
                             }
-                            is PrinterViewModel.ConnectionState.Failed -> {
-                                Icon(Icons.Default.Error, null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(36.dp))
-                            }
                             else -> {}
+                        }
+                    }
+
+                    // Show error reason inline when connection fails
+                    if (connectionState is PrinterViewModel.ConnectionState.Failed) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Default.Error, null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(16.dp))
+                            Text(
+                                (connectionState as PrinterViewModel.ConnectionState.Failed).reason,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
                         }
                     }
                 }
