@@ -176,6 +176,7 @@ fun SlicerScreen(
     val importLoading by viewModel.importLoading.collectAsState()
     val importProgress by viewModel.importProgress.collectAsState()
     val importError by viewModel.importError.collectAsState()
+    val copyCount by viewModel.copyCount.collectAsState()
     var showImportDialog by remember { mutableStateOf(false) }
 
     // MakerWorld import dialog
@@ -328,7 +329,7 @@ fun SlicerScreen(
                             Text("3D Preview")
                         }
                     }
-                    ConfigCard(config, viewModel::updateConfig)
+                    ConfigCard(config, viewModel::updateConfig, copyCount, viewModel::setCopyCount)
                     SliceButton(onClick = { viewModel.startSlicing() })
                 }
                 is SlicerViewModel.SlicerState.Slicing -> {
@@ -482,7 +483,9 @@ fun InfoRow(label: String, value: String) {
 @Composable
 fun ConfigCard(
     config: com.u1.slicer.data.SliceConfig,
-    onUpdate: ((com.u1.slicer.data.SliceConfig) -> com.u1.slicer.data.SliceConfig) -> Unit
+    onUpdate: ((com.u1.slicer.data.SliceConfig) -> com.u1.slicer.data.SliceConfig) -> Unit,
+    copyCount: Int = 1,
+    onSetCopyCount: (Int) -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -623,6 +626,16 @@ fun ConfigCard(
                             onCheckedChange = { v -> onUpdate { it.copy(supportEnabled = v) } }
                         )
                     }
+
+                    // Multiple copies
+                    Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                    Text("Copies: $copyCount", style = MaterialTheme.typography.labelMedium)
+                    Slider(
+                        value = copyCount.toFloat(),
+                        onValueChange = { v -> onSetCopyCount(v.toInt()) },
+                        valueRange = 1f..16f,
+                        steps = 14
+                    )
 
                     InfoRow("Nozzle Diameter", "${config.nozzleDiameter} mm")
                     InfoRow("Filament", config.filamentType)

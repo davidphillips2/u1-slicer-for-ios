@@ -112,4 +112,28 @@ Java_com_u1_slicer_NativeLibrary_getGcodePreview(JNIEnv* env, jobject, jint maxL
     return env->NewStringUTF(preview.c_str());
 }
 
+// ---- Multiple Copies ----
+// positions: flat float array [x0, y0, x1, y1, ...] in mm (bed-space)
+JNIEXPORT jboolean JNICALL
+Java_com_u1_slicer_NativeLibrary_setModelInstances(JNIEnv* env, jobject, jfloatArray jpositions) {
+    if (!g_engine) return JNI_FALSE;
+    if (!jpositions) return JNI_FALSE;
+
+    jsize len = env->GetArrayLength(jpositions);
+    if (len == 0 || len % 2 != 0) return JNI_FALSE;
+
+    jfloat* data = env->GetFloatArrayElements(jpositions, nullptr);
+
+    std::vector<std::pair<float, float>> positions;
+    positions.reserve(len / 2);
+    for (int i = 0; i + 1 < len; i += 2) {
+        positions.push_back({data[i], data[i + 1]});
+    }
+
+    env->ReleaseFloatArrayElements(jpositions, data, JNI_ABORT);
+
+    bool result = g_engine->setModelInstances(positions);
+    return result ? JNI_TRUE : JNI_FALSE;
+}
+
 } // extern "C"

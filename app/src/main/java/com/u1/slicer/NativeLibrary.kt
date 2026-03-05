@@ -40,6 +40,10 @@ class NativeLibrary {
     // ---- G-code ----
     external fun getGcodePreview(maxLines: Int = 100): String
 
+    // ---- Multiple copies ----
+    // positions: flat array [x0, y0, x1, y1, ...] in mm (bed-space)
+    external fun setModelInstances(positions: FloatArray): Boolean
+
     // ---- Progress Callback (called from native code) ----
     fun onSliceProgress(percentage: Int, stage: String) {
         progressListener?.invoke(percentage, stage)

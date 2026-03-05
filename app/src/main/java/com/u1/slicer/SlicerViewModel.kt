@@ -19,6 +19,7 @@ import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceConfig
 import com.u1.slicer.data.SliceJob
 import com.u1.slicer.data.SliceResult
+import com.u1.slicer.model.CopyArrangeCalculator
 import com.u1.slicer.ui.ExtruderAssignment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,10 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     private val _showMultiColorDialog = MutableStateFlow(false)
     val showMultiColorDialog: StateFlow<Boolean> = _showMultiColorDialog.asStateFlow()
 
+    // Multiple copies
+    private val _copyCount = MutableStateFlow(1)
+    val copyCount: StateFlow<Int> = _copyCount.asStateFlow()
+
     private val makerWorldClient = MakerWorldClient()
 
     // Filament library
@@ -92,6 +97,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     // Track the current working file (may be sanitized copy)
     private var currentModelFile: File? = null
     private var currentModelName: String = ""
+    private var lastModelInfo: ModelInfo? = null
 
     /** Exposed for 3D viewer navigation */
     val currentModelPath: String? get() = currentModelFile?.absolutePath
@@ -263,6 +269,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         if (success) {
             val info = native.getModelInfo()
             if (info != null) {
+                lastModelInfo = info
                 _state.value = SlicerState.ModelLoaded(info)
 
                 // Check for multi-color from 3MF parsing
@@ -306,6 +313,14 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         _showMultiColorDialog.value = true
     }
 
+    fun setCopyCount(count: Int) {
+        val mi = lastModelInfo
+        val max = if (mi != null && mi.sizeX > 0f && mi.sizeY > 0f)
+            CopyArrangeCalculator.maxCopies(mi.sizeX, mi.sizeY)
+        else 16
+        _copyCount.value = count.coerceIn(1, max)
+    }
+
     fun updateConfig(updater: (SliceConfig) -> SliceConfig) {
         _config.value = updater(_config.value)
     }
@@ -323,6 +338,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             _state.value = SlicerState.Slicing(0, "Preparing...")
+
+            // Apply multiple copies if requested (>1 copy)
+            val copies = _copyCount.value
+            if (copies > 1) {
+                val mi = lastModelInfo
+                if (mi != null && mi.sizeX > 0f && mi.sizeY > 0f) {
+                    val positions = CopyArrangeCalculator.calculate(mi.sizeX, mi.sizeY, copies)
+                    native.setModelInstances(positions)
+                    Log.i("SlicerVM", "Arranged $copies copies in grid (${positions.size / 2} actual)")
+                }
+            }
+
             val result = native.slice(_config.value)
 
             native.progressListener = null
@@ -434,6 +461,8 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         _showPlateSelector.value = false
         _showMultiColorDialog.value = false
         currentModelFile = null
+        lastModelInfo = null
+        _copyCount.value = 1
         // Reset multi-extruder config to single extruder
         _config.value = _config.value.copy(
             extruderCount = 1,

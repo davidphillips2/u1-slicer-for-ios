@@ -125,6 +125,10 @@ public:
     // G-code
     std::string getGcodePreview(int max_lines = 100) const;
 
+    // Multiple copies — set instance positions (x,y pairs in mm, bed-space)
+    // positions: flat array [x0, y0, x1, y1, ...], clears existing instances first
+    bool setModelInstances(const std::vector<std::pair<float, float>>& positions);
+
 private:
     struct Impl;
     Impl* pImpl;
@@ -137,3 +141,5 @@ jobject modelInfoToJava(JNIEnv* env, const ModelInfo& info);
 jobject sliceResultToJava(JNIEnv* env, const SliceResult& result);
 
 } // namespace sapil
+
+// Method added below — but we'll edit the file properly

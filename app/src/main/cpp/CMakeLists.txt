@@ -560,6 +560,7 @@ add_library(prusaslicer-jni SHARED
     src/sapil_print.cpp
     src/sapil_gcode.cpp
     src/sapil_progress.cpp
+    src/sapil_arrange.cpp
 )
 
 target_include_directories(prusaslicer-jni PRIVATE
