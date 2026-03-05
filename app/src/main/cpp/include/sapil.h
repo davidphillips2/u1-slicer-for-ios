@@ -66,6 +66,18 @@ struct SliceConfig {
     // Filament
     float filament_diameter = 1.75f;
     std::string filament_type = "PLA";
+
+    // Multi-extruder (up to 4 for Snapmaker U1)
+    int extruder_count = 1;
+    std::vector<int> extruder_temps;           // per-extruder nozzle temps
+    std::vector<float> extruder_retract_length; // per-extruder retraction
+    std::vector<float> extruder_retract_speed;  // per-extruder retraction speed
+
+    // Wipe tower (for multi-extruder)
+    bool wipe_tower_enabled = false;
+    float wipe_tower_x = 170.0f;
+    float wipe_tower_y = 140.0f;
+    float wipe_tower_width = 60.0f;
 };
 
 // ---- Model Info ----

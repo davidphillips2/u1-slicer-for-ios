@@ -33,6 +33,10 @@ class SettingsRepository(private val context: Context) {
         val NOZZLE_DIAMETER = floatPreferencesKey("nozzle_diameter")
         val FILAMENT_DIAMETER = floatPreferencesKey("filament_diameter")
         val FILAMENT_TYPE = stringPreferencesKey("filament_type")
+        val WIPE_TOWER_ENABLED = booleanPreferencesKey("wipe_tower_enabled")
+        val WIPE_TOWER_X = floatPreferencesKey("wipe_tower_x")
+        val WIPE_TOWER_Y = floatPreferencesKey("wipe_tower_y")
+        val WIPE_TOWER_WIDTH = floatPreferencesKey("wipe_tower_width")
         val PRINTER_URL = stringPreferencesKey("printer_url")
     }
 
@@ -58,7 +62,11 @@ class SettingsRepository(private val context: Context) {
             brimWidth = prefs[Keys.BRIM_WIDTH] ?: 0f,
             nozzleDiameter = prefs[Keys.NOZZLE_DIAMETER] ?: 0.4f,
             filamentDiameter = prefs[Keys.FILAMENT_DIAMETER] ?: 1.75f,
-            filamentType = prefs[Keys.FILAMENT_TYPE] ?: "PLA"
+            filamentType = prefs[Keys.FILAMENT_TYPE] ?: "PLA",
+            wipeTowerEnabled = prefs[Keys.WIPE_TOWER_ENABLED] ?: false,
+            wipeTowerX = prefs[Keys.WIPE_TOWER_X] ?: 170f,
+            wipeTowerY = prefs[Keys.WIPE_TOWER_Y] ?: 140f,
+            wipeTowerWidth = prefs[Keys.WIPE_TOWER_WIDTH] ?: 60f
         )
     }
 
@@ -89,6 +97,10 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.NOZZLE_DIAMETER] = config.nozzleDiameter
             prefs[Keys.FILAMENT_DIAMETER] = config.filamentDiameter
             prefs[Keys.FILAMENT_TYPE] = config.filamentType
+            prefs[Keys.WIPE_TOWER_ENABLED] = config.wipeTowerEnabled
+            prefs[Keys.WIPE_TOWER_X] = config.wipeTowerX
+            prefs[Keys.WIPE_TOWER_Y] = config.wipeTowerY
+            prefs[Keys.WIPE_TOWER_WIDTH] = config.wipeTowerWidth
         }
     }
 

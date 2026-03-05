@@ -170,7 +170,9 @@ fun SlicerScreen(
     val gcodePreview by viewModel.gcodePreview.collectAsState()
     val parsedGcode by viewModel.parsedGcode.collectAsState()
     val showPlateSelector by viewModel.showPlateSelector.collectAsState()
+    val showMultiColorDialog by viewModel.showMultiColorDialog.collectAsState()
     val threeMfInfo by viewModel.threeMfInfo.collectAsState()
+    val filaments by viewModel.filaments.collectAsState(initial = emptyList())
     val importLoading by viewModel.importLoading.collectAsState()
     val importProgress by viewModel.importProgress.collectAsState()
     val importError by viewModel.importError.collectAsState()
@@ -206,6 +208,17 @@ fun SlicerScreen(
             onSelect = { viewModel.selectPlate(it) },
             onDismiss = { viewModel.dismissPlateSelector() },
             info = threeMfInfo
+        )
+    }
+
+    // Multi-color assignment dialog
+    if (showMultiColorDialog && threeMfInfo != null) {
+        com.u1.slicer.ui.MultiColorDialog(
+            detectedColors = threeMfInfo!!.detectedColors,
+            extruderCount = threeMfInfo!!.detectedExtruderCount.coerceAtMost(4),
+            filaments = filaments,
+            onConfirm = { viewModel.applyMultiColorAssignments(it) },
+            onDismiss = { viewModel.dismissMultiColorDialog() }
         )
     }
 
@@ -291,6 +304,17 @@ fun SlicerScreen(
                     ModelInfoCard(s.info)
                     if (threeMfInfo != null && threeMfInfo!!.isBambu) {
                         BambuInfoCard(threeMfInfo!!)
+                    }
+                    if (config.extruderCount > 1) {
+                        MultiColorInfoCard(
+                            extruderCount = config.extruderCount,
+                            colors = threeMfInfo?.detectedColors ?: emptyList(),
+                            wipeTowerEnabled = config.wipeTowerEnabled,
+                            onToggleWipeTower = {
+                                viewModel.updateConfig { c -> c.copy(wipeTowerEnabled = !c.wipeTowerEnabled) }
+                            },
+                            onReassign = { viewModel.showMultiColorReassign() }
+                        )
                     }
                     // 3D Preview button (STL only for now)
                     if (viewModel.currentModelPath?.endsWith(".stl", ignoreCase = true) == true) {
@@ -860,6 +884,78 @@ fun BambuInfoCard(info: com.u1.slicer.bambu.ThreeMfInfo) {
             }
             if (info.isMultiPlate) {
                 InfoRow("Plates", info.plates.size.toString())
+            }
+        }
+    }
+}
+
+@Composable
+fun MultiColorInfoCard(
+    extruderCount: Int,
+    colors: List<String>,
+    wipeTowerEnabled: Boolean,
+    onToggleWipeTower: () -> Unit,
+    onReassign: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF1A3D2A)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Palette, null, tint = Color(0xFF81C784))
+                Spacer(Modifier.width(8.dp))
+                Text("Multi-Color Mode", fontWeight = FontWeight.Bold, fontSize = 16.sp,
+                    color = Color(0xFF81C784))
+            }
+            InfoRow("Extruders", extruderCount.toString())
+            if (colors.isNotEmpty()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text("Colors: ", style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.6f))
+                    colors.take(4).forEach { hex ->
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(com.u1.slicer.ui.parseHexColor(hex))
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Wipe Tower", style = MaterialTheme.typography.bodySmall,
+                    color = Color.White.copy(alpha = 0.8f))
+                Switch(
+                    checked = wipeTowerEnabled,
+                    onCheckedChange = { onToggleWipeTower() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color(0xFF81C784),
+                        checkedTrackColor = Color(0xFF81C784).copy(alpha = 0.4f)
+                    )
+                )
+            }
+            OutlinedButton(
+                onClick = onReassign,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Reassign Filaments")
             }
         }
     }

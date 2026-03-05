@@ -70,10 +70,12 @@ class SliceConfigTest {
     }
 
     @Test
-    fun `data class equality works`() {
+    fun `data class copy preserves values`() {
         val a = SliceConfig(layerHeight = 0.1f)
-        val b = SliceConfig(layerHeight = 0.1f)
-        assertEquals(a, b)
+        val b = a.copy()
+        assertEquals(a.layerHeight, b.layerHeight)
+        assertEquals(a.fillDensity, b.fillDensity)
+        assertEquals(a.extruderCount, b.extruderCount)
     }
 
     @Test

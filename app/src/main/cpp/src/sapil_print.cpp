@@ -66,21 +66,49 @@ static void applyConfigToPrusa(Slic3r::DynamicPrintConfig& dpc, const SliceConfi
     dpc.set_key_value("travel_speed", new Slic3r::ConfigOptionFloat(config.travel_speed));
     dpc.set_key_value("first_layer_speed", new Slic3r::ConfigOptionFloatOrPercent(config.first_layer_speed, false));
 
-    // Temperature
-    Slic3r::ConfigOptionInts nozzle_temps;
-    nozzle_temps.values = { config.nozzle_temp };
-    dpc.set_key_value("temperature", new Slic3r::ConfigOptionInts(nozzle_temps));
+    // Multi-extruder setup
+    int n_ext = std::max(1, config.extruder_count);
+    SAPIL_LOGI("Configuring %d extruder(s)", n_ext);
 
-    Slic3r::ConfigOptionInts first_layer_temps;
-    first_layer_temps.values = { config.nozzle_temp };
-    dpc.set_key_value("first_layer_temperature", new Slic3r::ConfigOptionInts(first_layer_temps));
+    // Build per-extruder arrays
+    std::vector<double> nozzle_diameters(n_ext, config.nozzle_diameter);
+    std::vector<double> filament_diameters(n_ext, config.filament_diameter);
+    std::vector<int> temps(n_ext, config.nozzle_temp);
+    std::vector<int> first_temps(n_ext, config.nozzle_temp);
+    std::vector<double> retract_len(n_ext, config.retract_length);
+    std::vector<double> retract_spd(n_ext, config.retract_speed);
 
+    // Override with per-extruder values if provided
+    for (int i = 0; i < n_ext; i++) {
+        if (i < (int)config.extruder_temps.size() && config.extruder_temps[i] > 0)
+            temps[i] = config.extruder_temps[i];
+        if (i < (int)config.extruder_temps.size() && config.extruder_temps[i] > 0)
+            first_temps[i] = config.extruder_temps[i];
+        if (i < (int)config.extruder_retract_length.size() && config.extruder_retract_length[i] > 0)
+            retract_len[i] = config.extruder_retract_length[i];
+        if (i < (int)config.extruder_retract_speed.size() && config.extruder_retract_speed[i] > 0)
+            retract_spd[i] = config.extruder_retract_speed[i];
+    }
+
+    // Temperature (per-extruder)
+    dpc.set_key_value("temperature", new Slic3r::ConfigOptionInts(temps));
+    dpc.set_key_value("first_layer_temperature", new Slic3r::ConfigOptionInts(first_temps));
     dpc.set_key_value("bed_temperature", new Slic3r::ConfigOptionInts({ config.bed_temp }));
     dpc.set_key_value("first_layer_bed_temperature", new Slic3r::ConfigOptionInts({ config.bed_temp }));
 
-    // Retraction
-    dpc.set_key_value("retract_length", new Slic3r::ConfigOptionFloats({ config.retract_length }));
-    dpc.set_key_value("retract_speed", new Slic3r::ConfigOptionFloats({ config.retract_speed }));
+    // Retraction (per-extruder)
+    dpc.set_key_value("retract_length", new Slic3r::ConfigOptionFloats(retract_len));
+    dpc.set_key_value("retract_speed", new Slic3r::ConfigOptionFloats(retract_spd));
+
+    // Nozzle diameter (per-extruder)
+    dpc.set_key_value("nozzle_diameter", new Slic3r::ConfigOptionFloats(nozzle_diameters));
+
+    // Filament diameter (per-extruder)
+    dpc.set_key_value("filament_diameter", new Slic3r::ConfigOptionFloats(filament_diameters));
+
+    // Extruder count — PrusaSlicer infers this from nozzle_diameter array size,
+    // but we set it explicitly for clarity
+    dpc.set_key_value("extruders_count", new Slic3r::ConfigOptionInt(n_ext));
 
     // Support
     dpc.set_key_value("support_material", new Slic3r::ConfigOptionBool(config.support_enabled));
@@ -93,11 +121,15 @@ static void applyConfigToPrusa(Slic3r::DynamicPrintConfig& dpc, const SliceConfi
     dpc.set_key_value("skirt_distance", new Slic3r::ConfigOptionFloat(config.skirt_distance));
     dpc.set_key_value("brim_width", new Slic3r::ConfigOptionFloat(config.brim_width));
 
-    // Nozzle
-    dpc.set_key_value("nozzle_diameter", new Slic3r::ConfigOptionFloats({ config.nozzle_diameter }));
-
-    // Filament diameter
-    dpc.set_key_value("filament_diameter", new Slic3r::ConfigOptionFloats({ config.filament_diameter }));
+    // Wipe tower (required for multi-extruder to purge between tool changes)
+    if (n_ext > 1 && config.wipe_tower_enabled) {
+        dpc.set_key_value("wipe_tower", new Slic3r::ConfigOptionBool(true));
+        dpc.set_key_value("wipe_tower_x", new Slic3r::ConfigOptionFloat(config.wipe_tower_x));
+        dpc.set_key_value("wipe_tower_y", new Slic3r::ConfigOptionFloat(config.wipe_tower_y));
+        dpc.set_key_value("wipe_tower_width", new Slic3r::ConfigOptionFloat(config.wipe_tower_width));
+    } else if (n_ext <= 1) {
+        dpc.set_key_value("wipe_tower", new Slic3r::ConfigOptionBool(false));
+    }
 }
 
 SliceResult SlicerEngine::slice(const SliceConfig& config, ProgressCallback progress) {

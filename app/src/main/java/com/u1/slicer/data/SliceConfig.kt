@@ -47,5 +47,17 @@ data class SliceConfig(
 
     // Filament
     @JvmField var filamentDiameter: Float = 1.75f,
-    @JvmField var filamentType: String = "PLA"
+    @JvmField var filamentType: String = "PLA",
+
+    // Multi-extruder (up to 4 for Snapmaker U1)
+    @JvmField var extruderCount: Int = 1,
+    @JvmField var extruderTemps: IntArray = intArrayOf(),
+    @JvmField var extruderRetractLength: FloatArray = floatArrayOf(),
+    @JvmField var extruderRetractSpeed: FloatArray = floatArrayOf(),
+
+    // Wipe tower (for multi-extruder)
+    @JvmField var wipeTowerEnabled: Boolean = false,
+    @JvmField var wipeTowerX: Float = 170f,
+    @JvmField var wipeTowerY: Float = 140f,
+    @JvmField var wipeTowerWidth: Float = 60f
 )

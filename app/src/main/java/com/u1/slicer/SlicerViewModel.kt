@@ -19,6 +19,7 @@ import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceConfig
 import com.u1.slicer.data.SliceJob
 import com.u1.slicer.data.SliceResult
+import com.u1.slicer.ui.ExtruderAssignment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,6 +76,10 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _importError = MutableStateFlow<String?>(null)
     val importError: StateFlow<String?> = _importError.asStateFlow()
+
+    // Multi-color state
+    private val _showMultiColorDialog = MutableStateFlow(false)
+    val showMultiColorDialog: StateFlow<Boolean> = _showMultiColorDialog.asStateFlow()
 
     private val makerWorldClient = MakerWorldClient()
 
@@ -259,12 +264,46 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             val info = native.getModelInfo()
             if (info != null) {
                 _state.value = SlicerState.ModelLoaded(info)
+
+                // Check for multi-color from 3MF parsing
+                val mfInfo = _threeMfInfo.value
+                if (mfInfo != null && mfInfo.detectedExtruderCount > 1) {
+                    // Auto-configure extruder count and show dialog
+                    val extCount = mfInfo.detectedExtruderCount.coerceAtMost(4)
+                    _config.value = _config.value.copy(
+                        extruderCount = extCount,
+                        wipeTowerEnabled = true
+                    )
+                    _showMultiColorDialog.value = true
+                    Log.i("SlicerVM", "Multi-color detected: $extCount extruders, colors=${mfInfo.detectedColors}")
+                }
             } else {
                 _state.value = SlicerState.Error("Failed to read model info")
             }
         } else {
             _state.value = SlicerState.Error("Failed to load model")
         }
+    }
+
+    fun applyMultiColorAssignments(assignments: List<ExtruderAssignment>) {
+        _showMultiColorDialog.value = false
+        val extCount = assignments.size.coerceAtMost(4)
+        _config.value = _config.value.copy(
+            extruderCount = extCount,
+            extruderTemps = IntArray(extCount) { assignments[it].temperature },
+            extruderRetractLength = FloatArray(extCount) { _config.value.retractLength },
+            extruderRetractSpeed = FloatArray(extCount) { _config.value.retractSpeed },
+            wipeTowerEnabled = extCount > 1
+        )
+        Log.i("SlicerVM", "Applied multi-color: $extCount extruders, temps=${assignments.map { it.temperature }}")
+    }
+
+    fun dismissMultiColorDialog() {
+        _showMultiColorDialog.value = false
+    }
+
+    fun showMultiColorReassign() {
+        _showMultiColorDialog.value = true
     }
 
     fun updateConfig(updater: (SliceConfig) -> SliceConfig) {
@@ -393,7 +432,16 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         _parsedGcode.value = null
         _threeMfInfo.value = null
         _showPlateSelector.value = false
+        _showMultiColorDialog.value = false
         currentModelFile = null
+        // Reset multi-extruder config to single extruder
+        _config.value = _config.value.copy(
+            extruderCount = 1,
+            extruderTemps = intArrayOf(),
+            extruderRetractLength = floatArrayOf(),
+            extruderRetractSpeed = floatArrayOf(),
+            wipeTowerEnabled = false
+        )
     }
 
     fun loadProfile(path: String) {

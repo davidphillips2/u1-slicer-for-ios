@@ -41,6 +41,28 @@ SliceConfig configFromJava(JNIEnv* env, jobject jconfig) {
         env->ReleaseStringUTFChars(jstr, chars);
         return result;
     };
+    auto getIntArray = [&](const char* name) -> std::vector<int> {
+        jfieldID fid = env->GetFieldID(cls, name, "[I");
+        if (!fid) return {};
+        auto jarr = (jintArray) env->GetObjectField(jconfig, fid);
+        if (!jarr) return {};
+        jsize len = env->GetArrayLength(jarr);
+        std::vector<int> result(len);
+        env->GetIntArrayRegion(jarr, 0, len, result.data());
+        env->DeleteLocalRef(jarr);
+        return result;
+    };
+    auto getFloatArray = [&](const char* name) -> std::vector<float> {
+        jfieldID fid = env->GetFieldID(cls, name, "[F");
+        if (!fid) return {};
+        auto jarr = (jfloatArray) env->GetObjectField(jconfig, fid);
+        if (!jarr) return {};
+        jsize len = env->GetArrayLength(jarr);
+        std::vector<float> result(len);
+        env->GetFloatArrayRegion(jarr, 0, len, result.data());
+        env->DeleteLocalRef(jarr);
+        return result;
+    };
 
     // Map fields
     config.layer_height = getFloat("layerHeight");
@@ -76,6 +98,16 @@ SliceConfig configFromJava(JNIEnv* env, jobject jconfig) {
     config.nozzle_diameter = getFloat("nozzleDiameter");
     config.filament_diameter = getFloat("filamentDiameter");
     config.filament_type = getString("filamentType");
+
+    // Multi-extruder
+    config.extruder_count = getInt("extruderCount");
+    config.extruder_temps = getIntArray("extruderTemps");
+    config.extruder_retract_length = getFloatArray("extruderRetractLength");
+    config.extruder_retract_speed = getFloatArray("extruderRetractSpeed");
+    config.wipe_tower_enabled = getBool("wipeTowerEnabled");
+    config.wipe_tower_x = getFloat("wipeTowerX");
+    config.wipe_tower_y = getFloat("wipeTowerY");
+    config.wipe_tower_width = getFloat("wipeTowerWidth");
 
     env->DeleteLocalRef(cls);
     return config;
@@ -116,6 +148,24 @@ jobject configToJava(JNIEnv* env, const SliceConfig& config) {
             env->DeleteLocalRef(jval);
         }
     };
+    auto setIntArray = [&](const char* name, const std::vector<int>& vals) {
+        jfieldID fid = env->GetFieldID(cls, name, "[I");
+        if (fid && !vals.empty()) {
+            jintArray jarr = env->NewIntArray(vals.size());
+            env->SetIntArrayRegion(jarr, 0, vals.size(), vals.data());
+            env->SetObjectField(obj, fid, jarr);
+            env->DeleteLocalRef(jarr);
+        }
+    };
+    auto setFloatArray = [&](const char* name, const std::vector<float>& vals) {
+        jfieldID fid = env->GetFieldID(cls, name, "[F");
+        if (fid && !vals.empty()) {
+            jfloatArray jarr = env->NewFloatArray(vals.size());
+            env->SetFloatArrayRegion(jarr, 0, vals.size(), vals.data());
+            env->SetObjectField(obj, fid, jarr);
+            env->DeleteLocalRef(jarr);
+        }
+    };
 
     setFloat("layerHeight", config.layer_height);
     setFloat("firstLayerHeight", config.first_layer_height);
@@ -143,6 +193,16 @@ jobject configToJava(JNIEnv* env, const SliceConfig& config) {
     setFloat("nozzleDiameter", config.nozzle_diameter);
     setFloat("filamentDiameter", config.filament_diameter);
     setString("filamentType", config.filament_type);
+
+    // Multi-extruder
+    setInt("extruderCount", config.extruder_count);
+    setIntArray("extruderTemps", config.extruder_temps);
+    setFloatArray("extruderRetractLength", config.extruder_retract_length);
+    setFloatArray("extruderRetractSpeed", config.extruder_retract_speed);
+    setBool("wipeTowerEnabled", config.wipe_tower_enabled);
+    setFloat("wipeTowerX", config.wipe_tower_x);
+    setFloat("wipeTowerY", config.wipe_tower_y);
+    setFloat("wipeTowerWidth", config.wipe_tower_width);
 
     env->DeleteLocalRef(cls);
     return obj;
