@@ -43,7 +43,7 @@ Steps:
 
 **NEVER deploy to <nf22e1-device-id> (NF22E1) — that is the user's personal device.**
 
-## Current Status (as of 2026-03-04)
+## Current Status (as of 2026-03-06)
 - ✅ Project scaffolding complete (Gradle, git, .gitignore)
 - ✅ SAPIL JNI layer complete — now using **real PrusaSlicer APIs**
 - ✅ Compose UI complete (dark theme, model info, settings, progress, G-code preview)
