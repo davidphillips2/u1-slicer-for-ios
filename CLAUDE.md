@@ -13,11 +13,22 @@ App ID: `com.u1.slicer.orca`
 
 Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
+**WSL environment**: `./gradlew` fails in WSL (CRLF line endings + Windows-only SDK). Always run Gradle via:
+```bash
+/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -NoProfile -Command "cd 'C:\Users\kevin\projects\u1-slicer-orca'; .\gradlew <task> --no-daemon"
+```
+
+**Git worktree**: `.git` is a file (worktree), not a directory. Plain `git` fails in WSL. Use:
+```bash
+GIT_DIR="/mnt/c/Users/kevin/projects/u1-slicer-for-android/.git/worktrees/u1-slicer-orca" git --work-tree="$(pwd)" <cmd>
+```
+Add `--ignore-cr-at-eol` to `git diff` to skip CRLF-only noise and see real changes.
+
 ## Test
 
 ```bash
 ./gradlew testDebugUnitTest                                                    # 235 JVM unit tests
-ANDROID_SERIAL=<pixel-8a-device-id> ./gradlew connectedDebugAndroidTest             # 93 instrumented tests
+ANDROID_SERIAL=<pixel-8a-device-id> ./gradlew connectedDebugAndroidTest             # 96 instrumented tests
 ```
 
 ### MANDATORY: End-to-end testing before a feature is "done"
@@ -33,6 +44,42 @@ End-to-end test checklist:
 6. Only then mark the feature complete
 
 **Never test on <nf22e1-device-id> — that is the user's personal device.**
+
+## ADB helpers
+
+```bash
+adb -s <pixel-8a-device-id> exec-out screencap -p > /tmp/screen.png        # screenshot → Read /tmp/screen.png
+adb -s <pixel-8a-device-id> shell "run-as com.u1.slicer.orca ls -lh files/"  # inspect app's internal files
+adb -s <pixel-8a-device-id> shell "run-as com.u1.slicer.orca sh -c 'rm files/plate1_embedded_*.3mf'"  # clear stale plate cache
+adb -s <pixel-8a-device-id> logcat -b main -d | grep "11079" | tail -30     # filter logcat by app PID
+```
+
+Both test device and personal device are always connected. `connectedDebugAndroidTest` runs on ALL connected devices — file-lock errors occur when both are present and a previous run left output files open. Clean with:
+```bash
+rm -rf app/build/outputs/androidTest-results/
+```
+
+### Running from Windows (Windows agent / PowerShell)
+
+All Gradle commands must be run from **Windows PowerShell**, not WSL:
+
+```powershell
+# Unit tests (235)
+cd C:\Users\kevin\projects\u1-slicer-orca
+.\gradlew testDebugUnitTest --no-daemon
+
+# Instrumented tests (96) — both devices must be connected
+Remove-Item -Recurse -Force app\build\outputs\androidTest-results -ErrorAction SilentlyContinue
+.\gradlew connectedDebugAndroidTest --no-daemon
+
+# Build + install on test device only
+.\gradlew installDebug --no-daemon
+adb -s <pixel-8a-device-id> shell am start -n com.u1.slicer.orca/com.u1.slicer.MainActivity
+```
+
+Check results: `app\build\reports\tests\testDebugUnitTest\index.html` (unit) and `app\build\reports\androidTests\connected\debug\index.html` (instrumented).
+
+**If instrumented tests fail with "file locked"**: a previous Gradle run left file handles open on the "Pixel 8a" (<nf22e1-device-id>). Kill the Gradle daemon (`.\gradlew --stop`), rerun `Remove-Item` above, then retry.
 
 ### Unit tests (`app/src/test/`)
 - `gcode/GcodeParserTest.kt` — G-code parsing: layers, extrusion, extruder switching
@@ -84,3 +131,7 @@ End-to-end test checklist:
 - `ThreeMfInfo.hasPlateJsons` — true when original Bambu ZIP has Metadata/plate_N.json files; persisted through the pipeline
 - `BambuSanitizer.process()` skips `restructureForMultiColor` when total component file size > 15MB (OOM guard) — OrcaSlicer handles `p:path` component refs natively for large files
 - `ThreeMfParser.isMultiPlate`: uses plate JSON count (new format) OR virtual-plate item positions (TX>270 or TY<0 on printable items) for old format detection
+- Do NOT call `clearModel()+loadModel()` before `setModelInstances()` in `startSlicing()` — `setModelInstances()` clears instances internally; the extra reload causes "Coordinate outside allowed range" Clipper errors
+- `BambuSanitizer.extractPlate()` copies ALL ZIP entries including PNG previews (unlike `process()` which strips them) — plate files therefore work with `GcodeThumbnailInjector`
+- `startSlicing()` wraps its entire body in `try/catch(Throwable)` with `finally { native.progressListener = null }` — any uncaught exception sets `SlicerState.Error` instead of leaving UI stuck at "100% Slicing"
+- Stale plate cache: after changing sanitizer/extraction logic, delete `files/plate*_embedded_*.3mf` on device (or reinstall app) — cached pre-fix files will produce wrong results silently
