@@ -141,4 +141,26 @@ class MergeThreeMfInfoTest {
 
         assertFalse(SlicerViewModel.isH2cSourceConfig(config))
     }
+
+    @Test
+    fun `shouldWarmReloadAfterUpgrade only triggers on first guarded model load`() {
+        assertTrue(
+            SlicerViewModel.shouldWarmReloadAfterUpgrade(
+                sessionHasPostUpgradeGuard = true,
+                firstModelLoadThisLaunch = true
+            )
+        )
+        assertFalse(
+            SlicerViewModel.shouldWarmReloadAfterUpgrade(
+                sessionHasPostUpgradeGuard = false,
+                firstModelLoadThisLaunch = true
+            )
+        )
+        assertFalse(
+            SlicerViewModel.shouldWarmReloadAfterUpgrade(
+                sessionHasPostUpgradeGuard = true,
+                firstModelLoadThisLaunch = false
+            )
+        )
+    }
 }

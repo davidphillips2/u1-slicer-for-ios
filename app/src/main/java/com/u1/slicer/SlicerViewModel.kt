@@ -749,15 +749,19 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun loadNativeModel(file: File) {
-        val success = native.loadModel(file.absolutePath)
+        val firstModelLoadThisLaunch = diagnostics.markFirstModelLoad()
+        var success = native.loadModel(file.absolutePath)
         diagnostics.recordEvent(
             "native_model_load",
             mapOf(
                 "success" to success,
                 "path" to file.absolutePath,
-                "firstModelLoadThisLaunch" to diagnostics.markFirstModelLoad()
+                "firstModelLoadThisLaunch" to firstModelLoadThisLaunch
             )
         )
+        if (success && shouldWarmReloadAfterUpgrade(firstModelLoadThisLaunch)) {
+            success = warmReloadNativeModelAfterUpgrade(file)
+        }
         if (success) {
             profileNeedsReEmbed = false  // Profile is current — just embedded
             val info = native.getModelInfo()
@@ -1868,6 +1872,44 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             return anyString(config["filament_settings_id"]) { it.contains("@BBL H2C") } ||
                 anyString(config["change_filament_gcode"]) { it.contains("H2C filament_change") }
         }
+
+        internal fun shouldWarmReloadAfterUpgrade(
+            sessionHasPostUpgradeGuard: Boolean,
+            firstModelLoadThisLaunch: Boolean
+        ): Boolean {
+            return sessionHasPostUpgradeGuard && firstModelLoadThisLaunch
+        }
+    }
+
+    private fun shouldWarmReloadAfterUpgrade(firstModelLoadThisLaunch: Boolean): Boolean {
+        return shouldWarmReloadAfterUpgrade(
+            sessionHasPostUpgradeGuard = diagnostics.sessionHasPostUpgradeGuard(),
+            firstModelLoadThisLaunch = firstModelLoadThisLaunch
+        )
+    }
+
+    /**
+     * The first post-upgrade slice can still hit an intermittent native Clipper failure even
+     * after the process restart. Rebuilding the native model state once more on the first model
+     * load of that guarded session mirrors the recovery path that makes the next slice succeed.
+     */
+    private fun warmReloadNativeModelAfterUpgrade(file: File): Boolean {
+        native.clearModel()
+        val reloadOk = native.loadModel(file.absolutePath)
+        diagnostics.recordEvent(
+            "post_upgrade_model_warm_reload",
+            mapOf(
+                "path" to file.absolutePath,
+                "success" to reloadOk,
+                "nativeState" to safeNativeDiagnosticsState()
+            )
+        )
+        if (reloadOk) {
+            native.getModelInfo()?.let { warmedInfo ->
+                lastModelInfo = warmedInfo
+            }
+        }
+        return reloadOk
     }
 }
 
