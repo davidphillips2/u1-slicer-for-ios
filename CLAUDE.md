@@ -15,12 +15,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 ## Release
 
-1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.3` -> `1.4.4`)
+1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.4` -> `1.4.5`)
 2. **Update docs** — update test counts in this file and `README.md` if they changed
 3. **Commit and push**:
    ```bash
    git add -p
-   git commit -m "bump: v1.4.4 - <short description>"
+   git commit -m "bump: v1.4.5 - <short description>"
    git push
    ```
 4. **Build the release APK**:
@@ -29,12 +29,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
    ```
 5. **Rename the APK** with the version number:
    ```bash
-   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.4.apk
+   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.5.apk
    ```
 6. **Create a GitHub release** (never overwrite or delete an existing release — always use a new tag):
    ```bash
-   gh release create v1.4.4 u1-slicer-v1.4.4.apk \
-     --title "v1.4.4" \
+   gh release create v1.4.5 u1-slicer-v1.4.5.apk \
+     --title "v1.4.5" \
      --notes "Brief description of what changed."
    ```
 
@@ -43,17 +43,17 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 399 JVM unit tests
-./gradlew connectedDebugAndroidTest                # 115 instrumented tests (uses Orchestrator)
+./gradlew testDebugUnitTest                        # 402 JVM unit tests
+./gradlew connectedDebugAndroidTest                # 117 instrumented tests (uses Orchestrator)
 ```
 
-### Unit tests (`app/src/test/`) - 399 tests across 24 classes
+### Unit tests (`app/src/test/`) - 402 tests across 25 classes
 - `gcode/GcodeParserTest.kt` (18) — G-code parsing: layers, extrusion, extruder switching
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
 - `viewer/StlParserTest.kt` (10) — Binary/ASCII STL parsing, bounding box, vertex data, 10-float vertex format
 - `viewer/MeshDataTest.kt` (9) — MeshData 10-float vertex format, extruderIndices, recolor(), RGBA values, multi-extruder recolor
-- `viewer/ThreeMfMeshParserTest.kt` (29) — 3MF mesh parsing, per-triangle color extraction, extruderMap, MeshWithContext, SEMM paint_color parsing, multi-object extruder map
+- `viewer/ThreeMfMeshParserTest.kt` (29) - 3MF mesh parsing, per-triangle color extraction, extruderMap, MeshWithContext, SEMM paint_color parsing, multi-object extruder map
 - `network/MakerWorldUtilsTest.kt` (36) — URL parsing, design→instance ID resolution, download response parsing, error classification, cookie sanitization
 - `network/MoonrakerClientTest.kt` (25) — PrinterStatus computed properties, URL normalization, LED state
 - `data/SliceConfigTest.kt` (21) — Default values match Snapmaker U1 hardware specs
@@ -72,20 +72,22 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 - `MergeThreeMfInfoTest.kt` (13) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection
 - `PreparePreviewPlacementTest.kt` (2) — native 3MF wipe tower visibility and object-placement rules
 - `viewer/NativePreviewMeshTest.kt` (2) — preview budget guardrails for very large native meshes
+- `viewer/ModelRendererCameraTest.kt` (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
 
-### Instrumented tests (`app/src/androidTest/`) - 115 tests across 12 classes
+### Instrumented tests (`app/src/androidTest/`) - 117 tests across 13 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
 - `data/SliceJobDaoTest.kt` (5) — Room DAO insert, ordering, delete
 - `data/GcodeSaveTruncationTest.kt` (2) — Save truncation regression
 - `native/NativeLibrarySymbolTest.kt` (6) — JNI symbol smoke tests
 - `native/NativeLibraryCorrectnessTest.kt` (4) — JNI correctness checks
 - `slicing/SlicingIntegrationTest.kt` (25) — STL/3MF load→slice, temps, layer count, metadata, SlicingOverrides E2E
-- `slicing/BambuPipelineIntegrationTest.kt` (30) — Multi-plate, dual/4-colour, sanitization, position-based plate extraction, B23 extruder map after restructure, per-part extruder parsing
+- `slicing/BambuPipelineIntegrationTest.kt` (31) — Multi-plate, dual/4-colour, sanitization, position-based plate extraction, B23 extruder map after restructure, per-part extruder parsing
 - `slicing/SemmSlicingTest.kt` (2) — SEMM (paint data) slicing pipeline: 2-extruder + 4-extruder assertions
 - `slicing/ProfileEmbedderIntegrationTest.kt` (14) — ZIP validity, config keys, full embed→slice pipeline, re-embed regression guard (B24)
 - `gcode/GcodeThumbnailInjectorTest.kt` (8) — 3MF image extraction, thumbnail blocks, G-code injection
 - `viewer/NativePreparePreviewTest.kt` (5) — native Prepare preview regressions: dual-colour, painted, old asset, selected multi-plate spread, Dragon plate 3 colour preservation
 - `viewer/ThreeMfMeshParserTest.kt` (4) - 3MF mesh parsing, transform resolution, per-triangle color extraction, calicube extruder indices
+- `PreparePreviewViewModelTest.kt` (2) — Dragon plate 3 end-to-end Prepare state and slice-output colour coverage
 
 ## Backlog
 
@@ -146,3 +148,4 @@ The native `.so` is pre-built in `app/src/main/jniLibs/arm64-v8a/`. To rebuild:
 4. Strip with NDK `llvm-strip --strip-unneeded`
 5. Copy `.so` to `app/src/main/jniLibs/arm64-v8a/`
 6. `./gradlew clean installDebug` — incremental builds may cache old APK
+

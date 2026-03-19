@@ -7,9 +7,12 @@ import com.u1.slicer.SlicerViewModel
 import com.u1.slicer.bambu.BambuSanitizer
 import com.u1.slicer.bambu.ProfileEmbedder
 import com.u1.slicer.bambu.ThreeMfParser
+import com.u1.slicer.data.defaultExtruderPresets
 import com.u1.slicer.data.SliceConfig
 import com.u1.slicer.gcode.GcodeToolRemapper
 import com.u1.slicer.gcode.GcodeValidator
+import com.u1.slicer.ui.ensureMultiSlotMapping
+import com.u1.slicer.ui.findClosestExtruder
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -405,6 +408,53 @@ class BambuPipelineIntegrationTest {
         assertTrue(
             "After mergeThreeMfInfoForPlate, detectedExtruderCount must be >= 2 (was ${result.detectedExtruderCount})",
             result.detectedExtruderCount >= 2
+        )
+    }
+
+    @Test
+    fun selectPlateMerge_mergeThreeMfInfoForPlate_preservesThreeVisibleColours_dragonPlate3() {
+        val input = asset("Dragon Scale infinity.3mf")
+        val origInfo = ThreeMfParser.parse(input)
+        val processed = BambuSanitizer.process(input, outDir)
+        val preSelectInfo = SlicerViewModel.mergeThreeMfInfo(ThreeMfParser.parse(processed), origInfo)
+
+        val plateObjectIds = preSelectInfo.plates
+            .find { it.plateId == 3 }
+            ?.objectIds
+            ?.toSet()
+        val plateExtruderMap = preSelectInfo.objectExtruderMap
+            .filterKeys { key -> plateObjectIds?.contains(key) == true }
+
+        val rawPlateFile = BambuSanitizer.extractPlate(
+            processed,
+            3,
+            outDir,
+            hasPlateJsons = preSelectInfo.hasPlateJsons,
+            plateObjectIds = plateObjectIds,
+            objectExtruderMap = plateExtruderMap
+        )
+        val plateFile = BambuSanitizer.restructurePlateFile(rawPlateFile, outDir)
+        val plateInfo = ThreeMfParser.parseForPlateSelection(plateFile)
+        val merged = SlicerViewModel.mergeThreeMfInfoForPlate(plateInfo, preSelectInfo)
+
+        assertTrue(
+            "Dragon plate 3 should expose at least 3 used extruders after extraction, got ${plateInfo.usedExtruderIndices}",
+            plateInfo.usedExtruderIndices.size >= 3
+        )
+        assertTrue(
+            "Dragon plate 3 should preserve at least 3 detected colors after merge, got ${merged.detectedColors}",
+            merged.detectedColors.size >= 3
+        )
+
+        val presets = defaultExtruderPresets()
+        val rawMapping = merged.detectedColors.map { color ->
+            findClosestExtruder(color, presets)?.index ?: 0
+        }
+        val initialMapping = ensureMultiSlotMapping(rawMapping, merged.detectedColors.size)
+
+        assertTrue(
+            "Dragon plate 3 should auto-map to at least 3 visible slots, raw=$rawMapping mapped=$initialMapping colors=${merged.detectedColors}",
+            initialMapping.distinct().size >= 3
         )
     }
 
