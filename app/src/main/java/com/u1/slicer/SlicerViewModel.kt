@@ -681,7 +681,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun selectPlate(plateId: Int) {
         _showPlateSelector.value = false
-        val file = currentModelFile ?: return
+        val file = resolvePlateSelectionSourceFile(sourceModelFile, currentModelFile) ?: return
         recoveryPlateId = plateId          // Track for Clipper recovery
         clipperRetryAttempted = false      // New plate = fresh retry allowance
         diagnostics.recordEvent(
@@ -1865,6 +1865,11 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             sourceModelFile != null -> sourceModelFile
             else -> currentModelFile
         }
+
+        internal fun resolvePlateSelectionSourceFile(
+            sourceModelFile: File?,
+            currentModelFile: File?
+        ): File? = sourceModelFile ?: currentModelFile
 
         internal fun isH2cSourceConfig(config: Map<String, Any>?): Boolean {
             if (config.isNullOrEmpty()) return false

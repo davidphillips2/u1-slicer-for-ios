@@ -133,6 +133,31 @@ class MergeThreeMfInfoTest {
     }
 
     @Test
+    fun `resolvePlateSelectionSourceFile prefers pre-embed source for multi-plate extraction`() {
+        val source = File("processed.3mf")
+        val current = File("embedded_sanitized.3mf")
+
+        val selected = SlicerViewModel.resolvePlateSelectionSourceFile(
+            sourceModelFile = source,
+            currentModelFile = current
+        )
+
+        assertEquals(source, selected)
+    }
+
+    @Test
+    fun `resolvePlateSelectionSourceFile falls back to current model when source missing`() {
+        val current = File("embedded_sanitized.3mf")
+
+        val selected = SlicerViewModel.resolvePlateSelectionSourceFile(
+            sourceModelFile = null,
+            currentModelFile = current
+        )
+
+        assertEquals(current, selected)
+    }
+
+    @Test
     fun `isH2cSourceConfig ignores generic machine compatibility markers`() {
         val config = mapOf(
             "upward_compatible_machine" to "Bambu Lab H2C 0.4 nozzle",
