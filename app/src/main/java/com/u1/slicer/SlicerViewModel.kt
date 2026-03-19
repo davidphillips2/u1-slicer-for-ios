@@ -773,10 +773,13 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 // Check for multi-color from 3MF parsing
                 val mfInfo = _threeMfInfo.value
                 if (mfInfo != null && mfInfo.detectedExtruderCount > 1) {
+                    val explicitSourceMapping =
+                        mfInfo.sourceFilamentMap.takeIf { it.size == mfInfo.detectedColors.size }
                     // Compact extruder count: use the smaller of detected colors and
                     // physical extruders (Snapmaker U1 has 4).  Compact mode slices as
                     // N-extruder and G-code post-processing remaps T-commands to physical slots.
-                    val extCount = mfInfo.detectedExtruderCount.coerceIn(1, 4)
+                    val extCount = (explicitSourceMapping?.distinct()?.size ?: mfInfo.detectedExtruderCount)
+                        .coerceIn(1, 4)
                     // Compute tower position that avoids the model
                     val positions = CopyArrangeCalculator.calculate(info.sizeX, info.sizeY, _copyCount.value)
                     val towerPos = CopyArrangeCalculator.computeWipeTowerPosition(
@@ -793,16 +796,28 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     // Auto-apply closest-extruder mapping immediately — no dialog popup.
                     // The inline UI on the model page lets the user change assignments.
                     val presets = extruderPresets.value
-                    val rawMapping = mfInfo.detectedColors.map { modelColor ->
-                        com.u1.slicer.ui.findClosestExtruder(modelColor, presets)?.index ?: 0
+                    val initialMapping = if (explicitSourceMapping != null) {
+                        explicitSourceMapping.map { it.coerceIn(0, 3) }
+                    } else {
+                        val rawMapping = mfInfo.detectedColors.map { modelColor ->
+                            com.u1.slicer.ui.findClosestExtruder(modelColor, presets)?.index ?: 0
+                        }
+                        // If all colours collapsed to one slot (e.g. no presets configured),
+                        // distribute sequentially so the initial slice is always multi-extruder.
+                        com.u1.slicer.ui.ensureMultiSlotMapping(
+                            rawMapping, mfInfo.detectedColors.size
+                        )
                     }
-                    // If all colours collapsed to one slot (e.g. no presets configured),
-                    // distribute sequentially so the initial slice is always multi-extruder.
-                    val initialMapping = com.u1.slicer.ui.ensureMultiSlotMapping(
-                        rawMapping, mfInfo.detectedColors.size)
                     _colorMapping.value = initialMapping
                     applyMultiColorAssignments(initialMapping, presets, emptyList())
-                    Log.i("SlicerVM", "Auto-applied color mapping: $extCount extruders, mapping=$initialMapping")
+                    Log.i(
+                        "SlicerVM",
+                        if (explicitSourceMapping != null) {
+                            "Applied source filament_maps mapping: $extCount extruders, mapping=$initialMapping"
+                        } else {
+                            "Auto-applied color mapping: $extCount extruders, mapping=$initialMapping"
+                        }
+                    )
                 } else {
                     _colorMapping.value = null
                     _selectedExtruder.value = 0
@@ -891,23 +906,10 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         // Store per-extruder colors for G-code viewers, indexed by physical slot.
         // After tool remapping the G-code uses physical T-indices (e.g. T2, T3),
         // so the color list must have entries at those positions.
-        // Use the configured slot color whenever present, including explicit white.
-        // Falling back from "#FFFFFF" to the detected model color made it impossible
-        // to preview a real white assignment on multi-color models.
-        val detectedColors = _threeMfInfo.value?.detectedColors ?: emptyList()
-        val fullColors = MutableList(4) { "" }  // 4 slots on Snapmaker U1
-        usedSlots.forEachIndexed { compactIdx, slotIndex ->
-            val presetColor = extruderPresets.firstOrNull { it.index == slotIndex }?.color
-            val modelColor = detectedColors.getOrElse(compactIdx) { "" }
-            fullColors[slotIndex] = when {
-                // Respect the user's assigned slot color, including white.
-                !presetColor.isNullOrBlank() -> presetColor
-                // Fall back to detected model color (from 3MF metadata)
-                modelColor.isNotBlank() -> modelColor
-                // Last resort: leave blank to use GcodeRenderer defaults (orange, blue, green, pink)
-                else -> ""
-            }
-        }
+        // Prepare preview should match sliced Preview, so both must color from the
+        // final extruder slot palette rather than drifting back toward detected
+        // model colors.
+        val fullColors = buildPreviewSlotColors(extruderPresets, usedSlots)
         _activeExtruderColors.value = fullColors
         Log.i("SlicerVM", "Applied color mapping: $extCount extruders used=${usedSlots}, remap=${toolRemapSlots}, temps=${temps.toList()}, colors=$fullColors")
     }
@@ -1811,6 +1813,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             plates = origInfo.plates,
             hasPlateJsons = origInfo.hasPlateJsons,
             detectedColors = origInfo.detectedColors,
+            sourceFilamentMap = origInfo.sourceFilamentMap,
             detectedExtruderCount = origInfo.detectedExtruderCount,
             usedExtruderIndices = origInfo.usedExtruderIndices,
             hasPaintData = origInfo.hasPaintData,
@@ -1853,6 +1856,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             return plateInfo.copy(
                 isBambu = sourceInfo.isBambu,
                 detectedColors = filteredColors,
+                sourceFilamentMap = sourceInfo.sourceFilamentMap,
                 detectedExtruderCount = if (filteredColors.isNotEmpty()) filteredColors.size else sourceInfo.detectedExtruderCount,
                 hasPaintData = sourceInfo.hasPaintData,
                 hasLayerToolChanges = sourceInfo.hasLayerToolChanges,
@@ -1899,6 +1903,21 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             firstModelLoadThisLaunch: Boolean
         ): Boolean {
             return sessionHasPostUpgradeGuard && firstModelLoadThisLaunch
+        }
+
+        internal fun buildPreviewSlotColors(
+            extruderPresets: List<com.u1.slicer.data.ExtruderPreset>,
+            usedSlots: List<Int>
+        ): List<String> {
+            val fullColors = MutableList(4) { "" }
+            usedSlots.forEach { slotIndex ->
+                if (slotIndex !in 0..3) return@forEach
+                val presetColor = extruderPresets.firstOrNull { it.index == slotIndex }?.color
+                fullColors[slotIndex] = presetColor
+                    ?.takeIf { it.isNotBlank() }
+                    ?: com.u1.slicer.data.ExtruderPreset.DEFAULT_COLORS[slotIndex]
+            }
+            return fullColors
         }
     }
 

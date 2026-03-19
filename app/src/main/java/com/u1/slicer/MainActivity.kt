@@ -1692,10 +1692,13 @@ fun InlineModelPreview(
     val previewTooLarge = remember(modelTriangleCount) {
         com.u1.slicer.viewer.NativePreviewMesh.wouldExceedSafePreviewBudget(modelTriangleCount)
     }
+    val nativeThreeMfPreview = remember(modelFilePath) {
+        modelFilePath.endsWith(".3mf", ignoreCase = true)
+    }
     // Track whether we've already uploaded this mesh to avoid redundant VBO re-uploads
     // when only colors/mapping change (B22 fix).
     var lastSetMesh by remember { mutableStateOf<com.u1.slicer.viewer.MeshData?>(null) }
-    val placementEnabled = objectPositions != null && onPositionsChanged != null
+    val placementEnabled = !nativeThreeMfPreview && objectPositions != null && onPositionsChanged != null
 
     // Mutable copies of positions for drag interaction
     val objPositions = remember(objectPositions) {

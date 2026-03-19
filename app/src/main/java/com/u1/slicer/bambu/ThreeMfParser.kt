@@ -80,6 +80,7 @@ object ThreeMfParser {
                 val objectNames = mutableMapOf<String, String>()
                 val extruderAssignments = mutableMapOf<String, Int>()
                 val plateObjectMap = mutableMapOf<Int, MutableList<String>>()
+                val plateFilamentMaps = mutableMapOf<Int, List<Int>>()
 
                 val allExtruderValuesMain = mutableSetOf<Int>()
                 if (isBambu) {
@@ -88,7 +89,9 @@ object ThreeMfParser {
                         parseModelSettingsConfig(
                             zip.getInputStream(msEntry),
                             plateNames, objectNames, extruderAssignments,
-                            plateObjectMap, allExtruderValues = allExtruderValuesMain
+                            plateObjectMap,
+                            plateFilamentMaps,
+                            allExtruderValues = allExtruderValuesMain
                         )
                         if (plateObjectMap.isNotEmpty()) {
                             Log.i(TAG, "Plate→object mapping: ${plateObjectMap.size} plates — $plateObjectMap")
@@ -220,6 +223,7 @@ object ThreeMfParser {
                     extruderAssignments.values.maxOrNull() ?: 0,
                     detectedColors.size
                 )
+                val sourceFilamentMap = plateFilamentMaps.toSortedMap().values.firstOrNull().orEmpty()
 
                 // 5. Synthesize placeholder colors when multi-extruder but no colors detected
                 //    so the dialog always shows assignable rows instead of 0 rows.
@@ -237,6 +241,7 @@ object ThreeMfParser {
                     hasLayerToolChanges = hasLayerToolChanges,
                     hasMultiExtruderAssignments = hasMultiExtruderAssignments,
                     detectedColors = detectedColors,
+                    sourceFilamentMap = sourceFilamentMap,
                     detectedExtruderCount = extruderCount,
                     hasPlateJsons = plateJsonCount > 1,
                     usedExtruderIndices = uniqueExtruders,
@@ -558,6 +563,7 @@ object ThreeMfParser {
         objectNames: MutableMap<String, String>,
         extruderAssignments: MutableMap<String, Int>,
         plateObjectMap: MutableMap<Int, MutableList<String>> = mutableMapOf(),
+        plateFilamentMaps: MutableMap<Int, List<Int>> = mutableMapOf(),
         allExtruderValues: MutableSet<Int>? = null
     ) {
         try {
@@ -603,6 +609,18 @@ object ThreeMfParser {
                                     key == "plater_name" && currentPlateId != null -> {
                                         currentPlateId?.toIntOrNull()?.let { id ->
                                             if (value.isNotBlank()) plateNames[id] = value
+                                        }
+                                    }
+                                    key == "filament_maps" && currentPlateId != null -> {
+                                        currentPlateId?.toIntOrNull()?.let { plateId ->
+                                            val mapping = value
+                                                .trim()
+                                                .split(Regex("\\s+"))
+                                                .mapNotNull { token -> token.toIntOrNull() }
+                                                .map { ext -> (ext - 1).coerceAtLeast(0) }
+                                            if (mapping.isNotEmpty()) {
+                                                plateFilamentMaps[plateId] = mapping
+                                            }
                                         }
                                     }
                                     // plate → model_instance → <metadata key="object_id" value="N"/>

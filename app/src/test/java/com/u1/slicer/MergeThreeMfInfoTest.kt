@@ -54,6 +54,7 @@ class MergeThreeMfInfoTest {
             isBambu = true, isMultiPlate = false,
             objectExtruderMap = mapOf("3" to 2),
             detectedColors = listOf("#FF0000", "#00FF00", "#0000FF"),
+            sourceFilamentMap = listOf(1, 1, 0),
             detectedExtruderCount = 3,
             usedExtruderIndices = setOf(1, 2, 3),
             hasPaintData = true
@@ -66,6 +67,7 @@ class MergeThreeMfInfoTest {
         val merged = SlicerViewModel.mergeThreeMfInfo(processedInfo, origInfo)
         assertEquals(mapOf("1" to 1, "2" to 2), merged.objectExtruderMap)
         assertEquals(setOf(1, 2, 3), merged.usedExtruderIndices)
+        assertEquals(listOf(1, 1, 0), merged.sourceFilamentMap)
     }
 
     @Test
@@ -75,6 +77,7 @@ class MergeThreeMfInfoTest {
             isBambu = true, isMultiPlate = false,
             objectExtruderMap = mapOf("1" to 1, "2" to 2),
             detectedColors = listOf("#FF0000", "#00FF00"),
+            sourceFilamentMap = listOf(0, 1),
             detectedExtruderCount = 2,
             hasPaintData = true
         )
@@ -85,6 +88,30 @@ class MergeThreeMfInfoTest {
         )
         val merged = SlicerViewModel.mergeThreeMfInfo(processedInfo, origInfo)
         assertEquals(mapOf("1" to 1, "2" to 2), merged.objectExtruderMap)
+        assertEquals(listOf(0, 1), merged.sourceFilamentMap)
+    }
+
+    @Test
+    fun `mergeThreeMfInfoForPlate preserves source filament map for H2C recolor`() {
+        val sourceInfo = ThreeMfInfo(
+            objects = emptyList(), plates = emptyList(),
+            isBambu = true, isMultiPlate = false,
+            detectedColors = listOf(
+                "#0086D6", "#FFFF00", "#FFFFFF", "#6A00D5",
+                "#FF0000", "#00AE42", "#FF8000"
+            ),
+            sourceFilamentMap = listOf(1, 1, 0, 1, 1, 1, 1),
+            detectedExtruderCount = 7
+        )
+        val plateInfo = ThreeMfInfo(
+            objects = emptyList(), plates = emptyList(),
+            isBambu = true, isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2)
+        )
+
+        val merged = SlicerViewModel.mergeThreeMfInfoForPlate(plateInfo, sourceInfo)
+
+        assertEquals(listOf(1, 1, 0, 1, 1, 1, 1), merged.sourceFilamentMap)
     }
 
     @Test
@@ -216,5 +243,47 @@ class MergeThreeMfInfoTest {
         )
 
         assertEquals(mapOf(1 to 1, 2 to 2, 3 to 3, 4 to 3), remap)
+    }
+
+    @Test
+    fun `buildPreviewSlotColors uses slot colors instead of detected model colors`() {
+        val presets = listOf(
+            com.u1.slicer.data.ExtruderPreset(0, "#112233"),
+            com.u1.slicer.data.ExtruderPreset(1, "#445566"),
+            com.u1.slicer.data.ExtruderPreset(2, "#778899"),
+            com.u1.slicer.data.ExtruderPreset(3, "#AABBCC")
+        )
+
+        val colors = SlicerViewModel.buildPreviewSlotColors(
+            extruderPresets = presets,
+            usedSlots = listOf(3, 2, 1, 0)
+        )
+
+        assertEquals(listOf("#112233", "#445566", "#778899", "#AABBCC"), colors)
+    }
+
+    @Test
+    fun `buildPreviewSlotColors falls back to default slot colors when preset color is blank`() {
+        val presets = listOf(
+            com.u1.slicer.data.ExtruderPreset(0, ""),
+            com.u1.slicer.data.ExtruderPreset(1, "#445566"),
+            com.u1.slicer.data.ExtruderPreset(2, ""),
+            com.u1.slicer.data.ExtruderPreset(3, "#AABBCC")
+        )
+
+        val colors = SlicerViewModel.buildPreviewSlotColors(
+            extruderPresets = presets,
+            usedSlots = listOf(0, 1, 2, 3)
+        )
+
+        assertEquals(
+            listOf(
+                com.u1.slicer.data.ExtruderPreset.DEFAULT_COLORS[0],
+                "#445566",
+                com.u1.slicer.data.ExtruderPreset.DEFAULT_COLORS[2],
+                "#AABBCC"
+            ),
+            colors
+        )
     }
 }
