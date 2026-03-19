@@ -15,12 +15,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 ## Release
 
-1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.4` -> `1.4.5`)
+1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.5` -> `1.4.6`)
 2. **Update docs** — update test counts in this file and `README.md` if they changed
 3. **Commit and push**:
    ```bash
    git add -p
-   git commit -m "bump: v1.4.5 - <short description>"
+   git commit -m "bump: v1.4.6 - <short description>"
    git push
    ```
 4. **Build the release APK**:
@@ -29,12 +29,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
    ```
 5. **Rename the APK** with the version number:
    ```bash
-   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.5.apk
+   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.6.apk
    ```
 6. **Create a GitHub release** (never overwrite or delete an existing release — always use a new tag):
    ```bash
-   gh release create v1.4.5 u1-slicer-v1.4.5.apk \
-     --title "v1.4.5" \
+   gh release create v1.4.6 u1-slicer-v1.4.6.apk \
+     --title "v1.4.6" \
      --notes "Brief description of what changed."
    ```
 
@@ -43,11 +43,11 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 402 JVM unit tests
+./gradlew testDebugUnitTest                        # 406 JVM unit tests
 ./gradlew connectedDebugAndroidTest                # 117 instrumented tests (uses Orchestrator)
 ```
 
-### Unit tests (`app/src/test/`) - 402 tests across 25 classes
+### Unit tests (`app/src/test/`) - 406 tests across 26 classes
 - `gcode/GcodeParserTest.kt` (18) — G-code parsing: layers, extrusion, extruder switching
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -72,7 +72,8 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 - `MergeThreeMfInfoTest.kt` (13) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection
 - `PreparePreviewPlacementTest.kt` (2) — native 3MF wipe tower visibility and object-placement rules
 - `viewer/NativePreviewMeshTest.kt` (2) — preview budget guardrails for very large native meshes
-- `viewer/ModelRendererCameraTest.kt` (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
+- iewer/ModelRendererCameraTest.kt (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
+- iewer/ModelViewerViewTest.kt (3) — Prepare selection falls back from face-plane to bed-plane hit-testing when needed
 
 ### Instrumented tests (`app/src/androidTest/`) - 117 tests across 13 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
@@ -148,4 +149,3 @@ The native `.so` is pre-built in `app/src/main/jniLibs/arm64-v8a/`. To rebuild:
 4. Strip with NDK `llvm-strip --strip-unneeded`
 5. Copy `.so` to `app/src/main/jniLibs/arm64-v8a/`
 6. `./gradlew clean installDebug` — incremental builds may cache old APK
-

@@ -7,7 +7,7 @@ import org.junit.Test
 class PreparePreviewPlacementTest {
 
     @Test
-    fun `native 3mf preview keeps wipe tower visible even without object placement`() {
+    fun `native 3mf preview keeps object placement and wipe tower available`() {
         val config = buildPreparePreviewPlacementConfig(
             nativeThreeMfPreview = true,
             objectPositionsPresent = true,
@@ -15,7 +15,7 @@ class PreparePreviewPlacementTest {
             wipeTowerEnabled = true
         )
 
-        assertFalse(config.objectPlacementEnabled)
+        assertTrue(config.objectPlacementEnabled)
         assertTrue(config.wipeTowerVisible)
     }
 
@@ -29,6 +29,19 @@ class PreparePreviewPlacementTest {
         )
 
         assertTrue(config.objectPlacementEnabled)
+        assertTrue(config.wipeTowerVisible)
+    }
+
+    @Test
+    fun `wipe tower still shows when placement callbacks are absent`() {
+        val config = buildPreparePreviewPlacementConfig(
+            nativeThreeMfPreview = true,
+            objectPositionsPresent = false,
+            onPositionsChangedPresent = false,
+            wipeTowerEnabled = true
+        )
+
+        assertFalse(config.objectPlacementEnabled)
         assertTrue(config.wipeTowerVisible)
     }
 }

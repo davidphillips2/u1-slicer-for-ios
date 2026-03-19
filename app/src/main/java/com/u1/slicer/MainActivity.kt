@@ -1976,8 +1976,9 @@ internal fun buildPreparePreviewPlacementConfig(
     onPositionsChangedPresent: Boolean,
     wipeTowerEnabled: Boolean
 ): PreparePreviewPlacementConfig {
-    val objectPlacementEnabled =
-        !nativeThreeMfPreview && objectPositionsPresent && onPositionsChangedPresent
+    // Native 3MF previews still need placement hit-testing so objects and the wipe tower
+    // can be selected and moved on the Prepare plate.
+    val objectPlacementEnabled = objectPositionsPresent && onPositionsChangedPresent
     return PreparePreviewPlacementConfig(
         objectPlacementEnabled = objectPlacementEnabled,
         wipeTowerVisible = wipeTowerEnabled

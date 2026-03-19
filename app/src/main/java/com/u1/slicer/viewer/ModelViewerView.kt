@@ -5,6 +5,23 @@ import android.view.MotionEvent
 
 class ModelViewerView(context: Context) : BaseGLViewerView(context) {
 
+    internal companion object {
+        fun resolveDragTarget(
+            bedHit: FloatArray?,
+            bedPlaneHit: FloatArray?,
+            hitTest: (Float, Float) -> Int
+        ): Int {
+            if (bedHit != null) {
+                val primary = hitTest(bedHit[0], bedHit[1])
+                if (primary >= 0) return primary
+            }
+            if (bedPlaneHit != null) {
+                return hitTest(bedPlaneHit[0], bedPlaneHit[1])
+            }
+            return -1
+        }
+    }
+
     val renderer = ModelRenderer(context)
     override val camera: Camera get() = renderer.camera
 
@@ -74,11 +91,14 @@ class ModelViewerView(context: Context) : BaseGLViewerView(context) {
             val halfZ = (renderer.meshData?.sizeZ ?: 0f) * renderer.modelScale[2] / 2f
             val bedHit = renderer.screenToBed(event.x, event.y, halfZ)
             val bed0  = renderer.screenToBed(event.x, event.y)
-            if (bedHit != null && bed0 != null) {
-                draggingIndex = hitTest(bedHit[0], bedHit[1])
+            if (bedHit != null || bed0 != null) {
+                // Prefer the visible-face projection, but fall back to the stable bed-plane
+                // projection when the closer preview camera makes the higher plane miss.
+                draggingIndex = resolveDragTarget(bedHit, bed0, ::hitTest)
                 if (draggingIndex >= 0) {
-                    lastBedX = bed0[0]
-                    lastBedY = bed0[1]
+                    val anchor = bed0 ?: bedHit!!
+                    lastBedX = anchor[0]
+                    lastBedY = anchor[1]
                     renderer.highlightIndex = draggingIndex
                     requestRender()
                     onActionDownHandled = true  // suppress long-press pan while dragging an object
@@ -144,7 +164,8 @@ class ModelViewerView(context: Context) : BaseGLViewerView(context) {
         val tower = renderer.wipeTower
         if (tower != null) {
             if (bx >= tower.x && bx <= tower.x + tower.width &&
-                by >= tower.y && by <= tower.y + tower.depth) return count
+                by >= tower.y && by <= tower.y + tower.depth
+            ) return count
         }
 
         return -1
