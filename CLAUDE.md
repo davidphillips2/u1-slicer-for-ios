@@ -15,12 +15,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 ## Release
 
-1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.2` -> `1.4.3`)
+1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.3` -> `1.4.4`)
 2. **Update docs** — update test counts in this file and `README.md` if they changed
 3. **Commit and push**:
    ```bash
    git add -p
-   git commit -m "bump: v1.4.3 - <short description>"
+   git commit -m "bump: v1.4.4 - <short description>"
    git push
    ```
 4. **Build the release APK**:
@@ -29,12 +29,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
    ```
 5. **Rename the APK** with the version number:
    ```bash
-   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.3.apk
+   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.4.apk
    ```
 6. **Create a GitHub release** (never overwrite or delete an existing release — always use a new tag):
    ```bash
-   gh release create v1.4.3 u1-slicer-v1.4.3.apk \
-     --title "v1.4.3" \
+   gh release create v1.4.4 u1-slicer-v1.4.4.apk \
+     --title "v1.4.4" \
      --notes "Brief description of what changed."
    ```
 
@@ -43,11 +43,11 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 397 JVM unit tests
-./gradlew connectedDebugAndroidTest                # 114 instrumented tests (uses Orchestrator)
+./gradlew testDebugUnitTest                        # 399 JVM unit tests
+./gradlew connectedDebugAndroidTest                # 115 instrumented tests (uses Orchestrator)
 ```
 
-### Unit tests (`app/src/test/`) - 397 tests across 23 classes
+### Unit tests (`app/src/test/`) - 399 tests across 24 classes
 - `gcode/GcodeParserTest.kt` (18) — G-code parsing: layers, extrusion, extruder switching
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -65,14 +65,15 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 - `bambu/ProfileEmbedderTest.kt` (5) — convertToModelSettings: per-volume extruder preservation, remap, attribute order
 - `ui/ExtruderAssignmentTest.kt` (6) — ExtruderAssignment defaults, copy, list building
 - `ui/FilamentJsonImportTest.kt` (15) — JSON import parsing: snake_case/camelCase, defaults, errors
-- `ui/MultiColorMappingTest.kt` (7) — ensureMultiSlotMapping collapse detection and sequential distribution
+- `ui/MultiColorMappingTest.kt` (8) — ensureMultiSlotMapping collapse detection and sequential distribution
 - `model/CopyArrangeCalculatorTest.kt` (18) — Centered grid layout, bed bounds, copy capping, wipe tower auto-positioning, skirt clearance
 - `UpgradeDetectorTest.kt` (15) — APK upgrade detection logic, version/timestamp comparison, file clearing patterns
 - `DiagnosticsStoreTest.kt` (5) — Diagnostics event logging, JSONL output
-- `MergeThreeMfInfoTest.kt` (14) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, source filament map preservation, preview file selection, H2C source detection
+- `MergeThreeMfInfoTest.kt` (13) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection
+- `PreparePreviewPlacementTest.kt` (2) — native 3MF wipe tower visibility and object-placement rules
 - `viewer/NativePreviewMeshTest.kt` (2) — preview budget guardrails for very large native meshes
 
-### Instrumented tests (`app/src/androidTest/`) - 114 tests across 12 classes
+### Instrumented tests (`app/src/androidTest/`) - 115 tests across 12 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
 - `data/SliceJobDaoTest.kt` (5) — Room DAO insert, ordering, delete
 - `data/GcodeSaveTruncationTest.kt` (2) — Save truncation regression
@@ -83,7 +84,7 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 - `slicing/SemmSlicingTest.kt` (2) — SEMM (paint data) slicing pipeline: 2-extruder + 4-extruder assertions
 - `slicing/ProfileEmbedderIntegrationTest.kt` (14) — ZIP validity, config keys, full embed→slice pipeline, re-embed regression guard (B24)
 - `gcode/GcodeThumbnailInjectorTest.kt` (8) — 3MF image extraction, thumbnail blocks, G-code injection
-- `viewer/NativePreparePreviewTest.kt` (4) — native Prepare preview regressions: dual-colour, painted, old asset, selected multi-plate spread
+- `viewer/NativePreparePreviewTest.kt` (5) — native Prepare preview regressions: dual-colour, painted, old asset, selected multi-plate spread, Dragon plate 3 colour preservation
 - `viewer/ThreeMfMeshParserTest.kt` (4) - 3MF mesh parsing, transform resolution, per-triangle color extraction, calicube extruder indices
 
 ## Backlog

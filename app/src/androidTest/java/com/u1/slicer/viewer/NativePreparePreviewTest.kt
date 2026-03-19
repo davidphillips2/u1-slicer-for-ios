@@ -172,4 +172,41 @@ class NativePreparePreviewTest {
             height >= 80f
         )
     }
+
+    @Test
+    fun getPreparePreviewMesh_preservesThreeColours_forDragonPlate3() {
+        copyAssetToModelFile("Dragon Scale infinity.3mf")
+        val originalInfo = ThreeMfParser.parse(modelFile)
+        val sanitized = BambuSanitizer.process(modelFile, workDir, isBambu = originalInfo.isBambu)
+        val plateObjectIds = originalInfo.plates
+            .find { it.plateId == 3 }
+            ?.objectIds
+            ?.toSet()
+        val plateExtruderMap = originalInfo.objectExtruderMap
+            .filterKeys { key -> plateObjectIds?.contains(key) == true }
+
+        val rawPlateFile = BambuSanitizer.extractPlate(
+            sanitized,
+            3,
+            workDir,
+            hasPlateJsons = originalInfo.hasPlateJsons,
+            plateObjectIds = plateObjectIds,
+            objectExtruderMap = plateExtruderMap
+        )
+        val plateFile = BambuSanitizer.restructurePlateFile(rawPlateFile, workDir)
+
+        assertTrue(lib.loadModel(plateFile.absolutePath))
+
+        val preview = lib.getPreparePreviewMesh()
+
+        assertNotNull(preview)
+        preview!!
+        assertTrue(preview.trianglePositions.isNotEmpty())
+        assertTrue(preview.extruderIndices.size * 9 == preview.trianglePositions.size)
+        val distinctPreviewIndices = preview.extruderIndices.map { it.toInt() and 0xFF }.toSet()
+        assertTrue(
+            "Expected Dragon plate 3 preview to preserve at least 3 colours, got $distinctPreviewIndices",
+            distinctPreviewIndices.size >= 3
+        )
+    }
 }

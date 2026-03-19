@@ -29,9 +29,6 @@ data class ThreeMfInfo(
     val hasLayerToolChanges: Boolean = false,
     val hasMultiExtruderAssignments: Boolean = false,
     val detectedColors: List<String> = emptyList(),
-    /** Optional 0-based model-colour -> extruder-slot mapping from Bambu model_settings.config
-     *  (plate metadata key="filament_maps"). */
-    val sourceFilamentMap: List<Int> = emptyList(),
     val detectedExtruderCount: Int = 1,
     /**
      * True when the original Bambu 3MF ZIP contains Metadata/plate_N.json files.

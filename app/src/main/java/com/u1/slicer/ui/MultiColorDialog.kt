@@ -65,10 +65,14 @@ fun findClosestExtruder(color: String, presets: List<ExtruderPreset>): ExtruderP
  * @param colorCount  Number of detected model colours (= rawMapping.size).
  */
 fun ensureMultiSlotMapping(rawMapping: List<Int>, colorCount: Int): List<Int> =
-    if (rawMapping.distinct().size < 2 && colorCount >= 2)
-        (0 until colorCount).map { it % 2 }  // 0,1,0,1,… across compact slots
-    else
-        rawMapping
+    when {
+        colorCount <= 1 -> rawMapping
+        colorCount <= 3 && rawMapping.distinct().size < colorCount ->
+            (0 until colorCount).toList()
+        rawMapping.distinct().size < 2 ->
+            (0 until colorCount).map { it % 2 }  // 0,1,0,1,… across compact slots
+        else -> rawMapping
+    }
 
 /**
  * Dialog shown when a multi-color 3MF is loaded.

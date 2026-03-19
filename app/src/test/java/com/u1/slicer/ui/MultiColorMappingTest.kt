@@ -97,6 +97,22 @@ class MultiColorMappingTest {
     }
 
     /**
+     * Dragon plate 3 style regression: a three-colour plate can still collapse to only
+     * two slots if closest-colour matching picks duplicates. The initial mapping should
+     * preserve all 3 colours across 3 slots when 4 physical slots are available.
+     */
+    @Test
+    fun ensureMultiSlotMapping_threeColorsCollapsedToTwo_distributesToThreeSlots() {
+        val rawMapping = listOf(0, 1, 1)
+        val result = ensureMultiSlotMapping(rawMapping, colorCount = 3)
+        assertEquals(
+            "Three-colour model should start with 3 distinct slots when possible, got $result",
+            3,
+            result.distinct().size
+        )
+    }
+
+    /**
      * All-same non-zero slot with 2+ colours: should distribute.
      * MUST FAIL on STUB.
      */

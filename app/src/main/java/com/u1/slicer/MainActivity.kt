@@ -1695,10 +1695,23 @@ fun InlineModelPreview(
     val nativeThreeMfPreview = remember(modelFilePath) {
         modelFilePath.endsWith(".3mf", ignoreCase = true)
     }
+    val placementConfig = remember(
+        nativeThreeMfPreview,
+        objectPositions,
+        onPositionsChanged,
+        wipeTowerEnabled
+    ) {
+        buildPreparePreviewPlacementConfig(
+            nativeThreeMfPreview = nativeThreeMfPreview,
+            objectPositionsPresent = objectPositions != null,
+            onPositionsChangedPresent = onPositionsChanged != null,
+            wipeTowerEnabled = wipeTowerEnabled
+        )
+    }
     // Track whether we've already uploaded this mesh to avoid redundant VBO re-uploads
     // when only colors/mapping change (B22 fix).
     var lastSetMesh by remember { mutableStateOf<com.u1.slicer.viewer.MeshData?>(null) }
-    val placementEnabled = !nativeThreeMfPreview && objectPositions != null && onPositionsChanged != null
+    val placementEnabled = placementConfig.objectPlacementEnabled
 
     // Mutable copies of positions for drag interaction
     val objPositions = remember(objectPositions) {
@@ -1806,7 +1819,7 @@ fun InlineModelPreview(
             val firstPlacement = v.renderer.instancePositions == null
             v.renderer.instancePositions = objPositions
             if (firstPlacement) v.renderer.pendingCameraReset = true
-            if (wipeTowerEnabled) {
+            if (placementConfig.wipeTowerVisible) {
                 v.renderer.wipeTower = com.u1.slicer.viewer.ModelRenderer.WipeTowerInfo(
                     towerX, towerY, wipeTowerWidth, wipeTowerDepth
                 )
@@ -1836,7 +1849,13 @@ fun InlineModelPreview(
         } else {
             v.placementMode = false
             v.renderer.instancePositions = null
-            v.renderer.wipeTower = null
+            v.renderer.wipeTower = if (placementConfig.wipeTowerVisible) {
+                com.u1.slicer.viewer.ModelRenderer.WipeTowerInfo(
+                    towerX, towerY, wipeTowerWidth, wipeTowerDepth
+                )
+            } else {
+                null
+            }
             v.onObjectMoved = null
         }
     }
@@ -1944,6 +1963,25 @@ fun InlineModelPreview(
             }
         }
     }
+}
+
+internal data class PreparePreviewPlacementConfig(
+    val objectPlacementEnabled: Boolean,
+    val wipeTowerVisible: Boolean
+)
+
+internal fun buildPreparePreviewPlacementConfig(
+    nativeThreeMfPreview: Boolean,
+    objectPositionsPresent: Boolean,
+    onPositionsChangedPresent: Boolean,
+    wipeTowerEnabled: Boolean
+): PreparePreviewPlacementConfig {
+    val objectPlacementEnabled =
+        !nativeThreeMfPreview && objectPositionsPresent && onPositionsChangedPresent
+    return PreparePreviewPlacementConfig(
+        objectPlacementEnabled = objectPlacementEnabled,
+        wipeTowerVisible = wipeTowerEnabled
+    )
 }
 
 @Composable

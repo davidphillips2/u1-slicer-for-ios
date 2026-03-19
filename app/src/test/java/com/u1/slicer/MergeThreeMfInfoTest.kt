@@ -54,7 +54,6 @@ class MergeThreeMfInfoTest {
             isBambu = true, isMultiPlate = false,
             objectExtruderMap = mapOf("3" to 2),
             detectedColors = listOf("#FF0000", "#00FF00", "#0000FF"),
-            sourceFilamentMap = listOf(1, 1, 0),
             detectedExtruderCount = 3,
             usedExtruderIndices = setOf(1, 2, 3),
             hasPaintData = true
@@ -67,7 +66,6 @@ class MergeThreeMfInfoTest {
         val merged = SlicerViewModel.mergeThreeMfInfo(processedInfo, origInfo)
         assertEquals(mapOf("1" to 1, "2" to 2), merged.objectExtruderMap)
         assertEquals(setOf(1, 2, 3), merged.usedExtruderIndices)
-        assertEquals(listOf(1, 1, 0), merged.sourceFilamentMap)
     }
 
     @Test
@@ -77,7 +75,6 @@ class MergeThreeMfInfoTest {
             isBambu = true, isMultiPlate = false,
             objectExtruderMap = mapOf("1" to 1, "2" to 2),
             detectedColors = listOf("#FF0000", "#00FF00"),
-            sourceFilamentMap = listOf(0, 1),
             detectedExtruderCount = 2,
             hasPaintData = true
         )
@@ -88,30 +85,6 @@ class MergeThreeMfInfoTest {
         )
         val merged = SlicerViewModel.mergeThreeMfInfo(processedInfo, origInfo)
         assertEquals(mapOf("1" to 1, "2" to 2), merged.objectExtruderMap)
-        assertEquals(listOf(0, 1), merged.sourceFilamentMap)
-    }
-
-    @Test
-    fun `mergeThreeMfInfoForPlate preserves source filament map for H2C recolor`() {
-        val sourceInfo = ThreeMfInfo(
-            objects = emptyList(), plates = emptyList(),
-            isBambu = true, isMultiPlate = false,
-            detectedColors = listOf(
-                "#0086D6", "#FFFF00", "#FFFFFF", "#6A00D5",
-                "#FF0000", "#00AE42", "#FF8000"
-            ),
-            sourceFilamentMap = listOf(1, 1, 0, 1, 1, 1, 1),
-            detectedExtruderCount = 7
-        )
-        val plateInfo = ThreeMfInfo(
-            objects = emptyList(), plates = emptyList(),
-            isBambu = true, isMultiPlate = false,
-            usedExtruderIndices = setOf(1, 2)
-        )
-
-        val merged = SlicerViewModel.mergeThreeMfInfoForPlate(plateInfo, sourceInfo)
-
-        assertEquals(listOf(1, 1, 0, 1, 1, 1, 1), merged.sourceFilamentMap)
     }
 
     @Test
