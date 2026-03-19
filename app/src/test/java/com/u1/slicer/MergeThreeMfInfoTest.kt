@@ -55,6 +55,7 @@ class MergeThreeMfInfoTest {
             objectExtruderMap = mapOf("3" to 2),
             detectedColors = listOf("#FF0000", "#00FF00", "#0000FF"),
             detectedExtruderCount = 3,
+            usedExtruderIndices = setOf(1, 2, 3),
             hasPaintData = true
         )
         val processedInfo = ThreeMfInfo(
@@ -64,6 +65,7 @@ class MergeThreeMfInfoTest {
         )
         val merged = SlicerViewModel.mergeThreeMfInfo(processedInfo, origInfo)
         assertEquals(mapOf("1" to 1, "2" to 2), merged.objectExtruderMap)
+        assertEquals(setOf(1, 2, 3), merged.usedExtruderIndices)
     }
 
     @Test
@@ -162,5 +164,57 @@ class MergeThreeMfInfoTest {
                 firstModelLoadThisLaunch = false
             )
         )
+    }
+
+    @Test
+    fun `buildCompactExtruderRemap compacts original extruders to chosen slot order`() {
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3, 4, 5)
+        )
+
+        val remap = buildCompactExtruderRemap(
+            info = info,
+            colorMapping = listOf(0, 0, 3, 3, 0)
+        )
+
+        assertEquals(
+            mapOf(1 to 1, 2 to 1, 3 to 2, 4 to 2, 5 to 1),
+            remap
+        )
+    }
+
+    @Test
+    fun `buildCompactExtruderRemap returns null without color mapping`() {
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3)
+        )
+
+        assertNull(buildCompactExtruderRemap(info, null))
+        assertNull(buildCompactExtruderRemap(info, emptyList()))
+    }
+
+    @Test
+    fun `buildCompactExtruderRemap falls back to color row indices when source extruders are missing`() {
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false
+        )
+
+        val remap = buildCompactExtruderRemap(
+            info = info,
+            colorMapping = listOf(0, 1, 3, 3)
+        )
+
+        assertEquals(mapOf(1 to 1, 2 to 2, 3 to 3, 4 to 3), remap)
     }
 }

@@ -29,7 +29,14 @@ class ProfileEmbedderTest {
 
         assertTrue("Must contain object id=1", result.contains("""<object id="1">"""))
         assertTrue("Must contain volume [0-999]", result.contains("""firstid="0" lastid="999""""))
-        assertTrue("Must contain extruder value=1", result.contains("""value="1""""))
+        assertTrue(
+            "Must preserve object metadata type",
+            result.contains("""<metadata type="object" key="extruder" value="1"/>""")
+        )
+        assertTrue(
+            "Must preserve volume metadata type",
+            result.contains("""<metadata type="volume" key="extruder" value="1"/>""")
+        )
     }
 
     @Test
@@ -57,7 +64,7 @@ class ProfileEmbedderTest {
 
         // Object-level extruder must be 2
         assertTrue("Object must have extruder=2",
-            result.contains("""<metadata key="extruder" value="2"/>"""))
+            result.contains("""<metadata type="object" key="extruder" value="2"/>"""))
 
         // All 3 volumes must be preserved
         assertTrue("Volume 0-181579 must exist",
@@ -68,7 +75,7 @@ class ProfileEmbedderTest {
             result.contains("""firstid="207896" lastid="260855""""))
 
         // Volume 1 must have extruder=1 (different from object-level)
-        val vol1Match = Regex("""firstid="0" lastid="181579">\s*\n\s*<metadata key="extruder" value="(\d+)"""")
+        val vol1Match = Regex("""firstid="0" lastid="181579">\s*\n\s*<metadata type="volume" key="extruder" value="(\d+)"""")
             .find(result)
         assertNotNull("Volume 0-181579 must have extruder metadata", vol1Match)
         assertEquals("First volume must be extruder 1", "1", vol1Match!!.groupValues[1])
@@ -96,14 +103,14 @@ class ProfileEmbedderTest {
 
         // Object-level must be remapped 2→4
         assertTrue("Object extruder must be remapped to 4",
-            result.contains("""<metadata key="extruder" value="4"/>"""))
+            result.contains("""<metadata type="object" key="extruder" value="4"/>"""))
 
         // Volume extruders must also be remapped
-        val vol1Match = Regex("""firstid="0" lastid="100">\s*\n\s*<metadata key="extruder" value="(\d+)"""")
+        val vol1Match = Regex("""firstid="0" lastid="100">\s*\n\s*<metadata type="volume" key="extruder" value="(\d+)"""")
             .find(result)
         assertEquals("Volume 1 must be remapped 1→3", "3", vol1Match!!.groupValues[1])
 
-        val vol2Match = Regex("""firstid="101" lastid="200">\s*\n\s*<metadata key="extruder" value="(\d+)"""")
+        val vol2Match = Regex("""firstid="101" lastid="200">\s*\n\s*<metadata type="volume" key="extruder" value="(\d+)"""")
             .find(result)
         assertEquals("Volume 2 must be remapped 2→4", "4", vol2Match!!.groupValues[1])
     }

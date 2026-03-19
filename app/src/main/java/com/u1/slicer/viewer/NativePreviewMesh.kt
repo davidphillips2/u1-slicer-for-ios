@@ -104,4 +104,17 @@ data class NativePreviewMesh(
         buf.put(0.8f)
         buf.put(1f)
     }
+
+    companion object {
+        // FloatArray positions + ByteArray extruder ids + interleaved GL mesh buffer.
+        private const val ESTIMATED_BYTES_PER_TRIANGLE = 157L
+        const val MAX_SAFE_TRIANGLES = 1_200_000
+        const val MAX_SAFE_PREVIEW_BYTES = 188L * 1024L * 1024L
+
+        fun wouldExceedSafePreviewBudget(triangleCount: Int): Boolean {
+            if (triangleCount <= 0) return false
+            if (triangleCount > MAX_SAFE_TRIANGLES) return true
+            return triangleCount.toLong() * ESTIMATED_BYTES_PER_TRIANGLE > MAX_SAFE_PREVIEW_BYTES
+        }
+    }
 }

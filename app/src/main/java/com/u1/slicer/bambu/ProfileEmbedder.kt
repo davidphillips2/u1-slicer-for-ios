@@ -84,7 +84,7 @@ class ProfileEmbedder(private val context: Context) {
                 val remappedObj = extruderRemap?.get(rawObjExt) ?: rawObjExt
 
                 sb.appendLine("""  <object id="$objectId">""")
-                sb.appendLine("""    <metadata key="extruder" value="$remappedObj"/>""")
+                sb.appendLine("""    <metadata type="object" key="extruder" value="$remappedObj"/>""")
 
                 for (volMatch in volumeRe.findAll(body)) {
                     val firstId = volMatch.groupValues[1]
@@ -94,7 +94,7 @@ class ProfileEmbedder(private val context: Context) {
                     val rawVolExt = (volExtMatch?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() })?.toIntOrNull() ?: rawObjExt
                     val remappedVol = extruderRemap?.get(rawVolExt) ?: rawVolExt
                     sb.appendLine("""    <volume firstid="$firstId" lastid="$lastId">""")
-                    sb.appendLine("""      <metadata key="extruder" value="$remappedVol"/>""")
+                    sb.appendLine("""      <metadata type="volume" key="extruder" value="$remappedVol"/>""")
                     sb.appendLine("""    </volume>""")
                 }
 

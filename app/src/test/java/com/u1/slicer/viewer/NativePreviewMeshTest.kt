@@ -2,7 +2,9 @@ package com.u1.slicer.viewer
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NativePreviewMeshTest {
@@ -30,5 +32,16 @@ class NativePreviewMeshTest {
         assertEquals(0f, mesh.minY, 0.001f)
         assertEquals(10f, mesh.maxY, 0.001f)
         assertArrayEquals(byteArrayOf(0, 3), mesh.extruderIndices)
+    }
+
+    @Test
+    fun `wouldExceedSafePreviewBudget rejects giant previews`() {
+        assertFalse(NativePreviewMesh.wouldExceedSafePreviewBudget(100_000))
+        assertTrue(
+            NativePreviewMesh.wouldExceedSafePreviewBudget(
+                NativePreviewMesh.MAX_SAFE_TRIANGLES + 1
+            )
+        )
+        assertTrue(NativePreviewMesh.wouldExceedSafePreviewBudget(1_260_000))
     }
 }

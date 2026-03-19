@@ -295,6 +295,14 @@ class MainActivity : ComponentActivity() {
                 var sharedPreviewCameraState by remember {
                     mutableStateOf<com.u1.slicer.viewer.CameraViewState?>(null)
                 }
+                val appSlicerState by viewModel.state.collectAsState()
+                val sharedPreviewModelKey = when (val s = appSlicerState) {
+                    is SlicerViewModel.SlicerState.Loading -> "loading:${s.filename}"
+                    else -> viewModel.previewModelPath ?: viewModel.currentModelPath
+                }
+                LaunchedEffect(sharedPreviewModelKey) {
+                    sharedPreviewCameraState = null
+                }
 
                 // Wire up the test receiver's navigate callback now that we have navController
                 if (isDebug) {
@@ -661,6 +669,7 @@ fun PrepareScreen(
                             val loadedInfo = info
                             InlineModelPreview(
                                 modelFilePath = modelPath,
+                                modelTriangleCount = loadedInfo?.triangleCount ?: 0,
                                 onFullScreen = if (modelPath.endsWith(".stl", ignoreCase = true))
                                     onNavigateModelViewer else ({}),
                                 extruderColors = extruderColors,
@@ -1656,6 +1665,7 @@ fun ErrorCard(
 @Composable
 fun InlineModelPreview(
     modelFilePath: String,
+    modelTriangleCount: Int = 0,
     onFullScreen: () -> Unit,
     extruderColors: List<String> = emptyList(),
     extruderMap: Map<Int, Byte>? = null,
@@ -1679,6 +1689,9 @@ fun InlineModelPreview(
     var viewerView by remember { mutableStateOf<com.u1.slicer.viewer.ModelViewerView?>(null) }
     var parseRequestId by remember { mutableIntStateOf(0) }
     var viewerLoading by remember(modelFilePath) { mutableStateOf(true) }
+    val previewTooLarge = remember(modelTriangleCount) {
+        com.u1.slicer.viewer.NativePreviewMesh.wouldExceedSafePreviewBudget(modelTriangleCount)
+    }
     // Track whether we've already uploaded this mesh to avoid redundant VBO re-uploads
     // when only colors/mapping change (B22 fix).
     var lastSetMesh by remember { mutableStateOf<com.u1.slicer.viewer.MeshData?>(null) }
@@ -1691,13 +1704,17 @@ fun InlineModelPreview(
     var towerX by remember(wipeTowerX) { mutableFloatStateOf(wipeTowerX) }
     var towerY by remember(wipeTowerY) { mutableFloatStateOf(wipeTowerY) }
 
-    LaunchedEffect(modelFilePath, extruderMap, colorMapping?.size) {
+    LaunchedEffect(modelFilePath, extruderMap, colorMapping?.size, previewTooLarge) {
         val requestId = parseRequestId + 1
         parseRequestId = requestId
         viewerLoading = true
         mesh = null
         lastSetMesh = null
         viewerView?.clearMesh()
+        if (previewTooLarge) {
+            viewerLoading = false
+            return@LaunchedEffect
+        }
         val parsedMesh = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val file = java.io.File(modelFilePath)
@@ -1830,28 +1847,37 @@ fun InlineModelPreview(
             .fillMaxWidth()
             .height(if (placementEnabled) 340.dp else 300.dp)
         ) {
-            androidx.compose.ui.viewinterop.AndroidView(
-                factory = { ctx ->
-                    com.u1.slicer.viewer.ModelViewerView(ctx).also { view ->
+            if (!previewTooLarge) {
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { ctx ->
+                        com.u1.slicer.viewer.ModelViewerView(ctx).also { view ->
+                            viewerView = view
+                            view.onCameraChanged = onCameraStateChange
+                            view.setOnContentReady { viewerLoading = false }
+                            mesh?.let { view.setMesh(it) }
+                            cameraState?.let { view.applyCameraState(it) }
+                        }
+                    },
+                    update = { view ->
                         viewerView = view
                         view.onCameraChanged = onCameraStateChange
                         view.setOnContentReady { viewerLoading = false }
-                        mesh?.let { view.setMesh(it) }
-                        cameraState?.let { view.applyCameraState(it) }
-                    }
-                },
-                update = { view ->
-                    viewerView = view
-                    view.onCameraChanged = onCameraStateChange
-                    view.setOnContentReady { viewerLoading = false }
-                    cameraState?.let {
-                        if (view.camera.snapshot() != it) {
-                            view.applyCameraState(it)
+                        cameraState?.let {
+                            if (view.camera.snapshot() != it) {
+                                view.applyCameraState(it)
+                            }
                         }
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
+                    },
+                    onRelease = { view ->
+                        if (viewerView === view) viewerView = null
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                LaunchedEffect(modelFilePath) {
+                    viewerView = null
+                }
+            }
             // Top-right overlay buttons
             Row(
                 modifier = Modifier
@@ -1883,6 +1909,12 @@ fun InlineModelPreview(
             if (viewerLoading) {
                 ViewerLoadingOverlay("Preparing preview…")
             }
+            if (!viewerLoading && previewTooLarge) {
+                LargePreviewFallback(
+                    triangleCount = modelTriangleCount,
+                    onInfoClick = onInfoClick
+                )
+            }
             // Scale overlay
             val isScaled = modelScale.x != 1f || modelScale.y != 1f || modelScale.z != 1f
             if (isScaled) {
@@ -1906,6 +1938,56 @@ fun InlineModelPreview(
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LargePreviewFallback(
+    triangleCount: Int,
+    onInfoClick: (() -> Unit)? = null
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.34f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.Black.copy(alpha = 0.64f),
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    Icons.Default.Dataset,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.92f),
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    "Preview skipped for this large model",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    "This file has %,d triangles, so building the full 3D Prepare preview would risk running out of memory on-device.".format(triangleCount),
+                    color = Color.White.copy(alpha = 0.82f),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center
+                )
+                if (onInfoClick != null) {
+                    TextButton(onClick = onInfoClick) {
+                        Text("Show model info")
+                    }
+                }
             }
         }
     }

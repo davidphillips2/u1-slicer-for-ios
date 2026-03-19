@@ -5,8 +5,9 @@ Open bugs, features, and investigations. Everything else is done — see git log
 ## Open Bugs
 
 ### B18: OOM on large/complex 3MF files
-- Reproduce with: `app/src/androidTest/assets/2026+F1+CALENDAR+...3mf`
-- Investigate memory usage during load/sanitize/parse pipeline for this file
+- Reproduce with: `C:\Users\kevin\Downloads\test-data\2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf`
+- This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
+- Investigate memory usage across import, sanitize, embed, and native load for giant component-model files
 
 ## Open Features
 
@@ -27,7 +28,8 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **I2**: First post-update Clipper "Coordinate outside allowed range" failure hardened again — FIXED v1.4.1
+- **Native Prepare Preview**: Prepare preview now uses native/Orca-backed mesh export instead of the old Kotlin-only path — DONE v1.4.0
 - **B24**: Stale slice config (skirt/prime tower not updating on re-slice) — FIXED v1.3.42
-- **I2**: Clipper "Coordinate outside allowed range" — FIXED v1.3.29 + v1.3.42
 - **B22/B23**: Multi-color preview race + extruder map mismatch — FIXED v1.3.37
 - **F3/F25**: Per-vertex multi-color preview + extruder picker — DONE v1.3.36

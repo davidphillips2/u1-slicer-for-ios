@@ -1043,13 +1043,14 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         val cfg = _config.value
         val extCount = cfg.extruderCount.coerceAtLeast(1)
         val usedSlots = toolRemapSlots  // e.g. [2,3] for E3+E4; null = identity/single
+        val colorMapping = _colorMapping.value
         // Use compact extruder count (= number of unique used slots, up to 4).
         // When slots are non-contiguous (e.g. E2+E4), we slice as compact N-extruder
         // and post-process G-code to remap T-commands + SM indices to physical slots.
         val targetCount = if (usedSlots != null) usedSlots.size else extCount
         // No extruder remap in the 3MF — keep compact numbering (1,2,…).
         // G-code post-processing handles T0→T2, T1→T3, SM EXTRUDER/INDEX remapping.
-        val extruderRemap: Map<Int, Int>? = null
+        val extruderRemap = buildCompactExtruderRemap(info, colorMapping)
         // Use the original file's config (parsed before process() strips it) when available.
         // Falls back to parsing from the current file for non-Bambu or when original is unavailable.
         val sourceConfig = originalSourceConfig ?: if (info.isBambu) {
@@ -1057,7 +1058,8 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         } else null
         Log.d("SlicerVM", "embedProfile: info.isBambu=${info.isBambu}, info.detectedExtruders=${info.detectedExtruderCount}, " +
             "info.hasToolChanges=${info.hasLayerToolChanges}, info.hasPaint=${info.hasPaintData}, " +
-            "info.isMultiPlate=${info.isMultiPlate}, sourceConfig=${sourceConfig != null}, targetCount=$targetCount")
+            "info.isMultiPlate=${info.isMultiPlate}, sourceConfig=${sourceConfig != null}, " +
+            "targetCount=$targetCount, extruderRemap=$extruderRemap")
         val embeddedConfig = profileEmbedder.buildConfig(
             info = info,
             sourceConfig = sourceConfig,
@@ -1146,6 +1148,24 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.IO) {
             val context = getApplication<Application>()
             try {
+                when (_state.value) {
+                    is SlicerState.Loading -> {
+                        Log.w("SlicerVM", "Ignoring slice request while model is still loading")
+                        _state.value = SlicerState.Error("Model is still loading. Please wait a moment and try again.")
+                        return@launch
+                    }
+                    is SlicerState.Idle -> {
+                        Log.w("SlicerVM", "Ignoring slice request with no model loaded")
+                        _state.value = SlicerState.Error("No model loaded")
+                        return@launch
+                    }
+                    else -> Unit
+                }
+                if (currentModelFile == null) {
+                    Log.w("SlicerVM", "Ignoring slice request because currentModelFile is null")
+                    _state.value = SlicerState.Error("Model is not ready to slice yet")
+                    return@launch
+                }
                 SlicingService.start(context)
                 var maxPct = 0
                 native.progressListener = { pct, stage ->
@@ -1792,6 +1812,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             hasPlateJsons = origInfo.hasPlateJsons,
             detectedColors = origInfo.detectedColors,
             detectedExtruderCount = origInfo.detectedExtruderCount,
+            usedExtruderIndices = origInfo.usedExtruderIndices,
             hasPaintData = origInfo.hasPaintData,
             hasLayerToolChanges = origInfo.hasLayerToolChanges,
             hasMultiExtruderAssignments = origInfo.hasMultiExtruderAssignments,
@@ -2023,4 +2044,33 @@ internal fun buildProfileOverridesImpl(
     }
 
     return result
+}
+
+internal fun buildCompactExtruderRemap(
+    info: ThreeMfInfo,
+    colorMapping: List<Int>?
+): Map<Int, Int>? {
+    if (colorMapping.isNullOrEmpty()) return null
+
+    val compactSlotOrder = colorMapping.distinct().sorted().take(4)
+    if (compactSlotOrder.isEmpty()) return null
+
+    val sortedSourceExtruders = info.usedExtruderIndices
+        .filter { it > 0 }
+        .sorted()
+        .ifEmpty {
+            (1..colorMapping.size).toList()
+        }
+    if (sortedSourceExtruders.isEmpty()) return null
+
+    val remap = linkedMapOf<Int, Int>()
+    sortedSourceExtruders.forEachIndexed { sourceIndex, sourceExtruder ->
+        val assignedSlot = colorMapping.getOrNull(sourceIndex) ?: colorMapping.last()
+        val compactIndex = compactSlotOrder.indexOf(assignedSlot)
+        if (compactIndex >= 0) {
+            remap[sourceExtruder] = compactIndex + 1
+        }
+    }
+
+    return remap.takeIf { it.isNotEmpty() }
 }
