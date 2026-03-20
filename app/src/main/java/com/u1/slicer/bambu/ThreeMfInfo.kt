@@ -4,6 +4,7 @@ data class ThreeMfPlate(
     val plateId: Int,
     val name: String,
     val objectIds: List<String>,
+    val filamentIndices: Set<Int> = emptySet(),
     val printable: Boolean = true,
     val transform: FloatArray = floatArrayOf(1f,0f,0f, 0f,1f,0f, 0f,0f,1f, 0f,0f,0f),
     val thumbnailBytes: ByteArray? = null

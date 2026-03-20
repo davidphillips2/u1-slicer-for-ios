@@ -80,6 +80,7 @@ object ThreeMfParser {
                 val objectNames = mutableMapOf<String, String>()
                 val extruderAssignments = mutableMapOf<String, Int>()
                 val plateObjectMap = mutableMapOf<Int, MutableList<String>>()
+                val plateFilamentMap = mutableMapOf<Int, Set<Int>>()
 
                 val allExtruderValuesMain = mutableSetOf<Int>()
                 if (isBambu) {
@@ -89,6 +90,7 @@ object ThreeMfParser {
                             zip.getInputStream(msEntry),
                             plateNames, objectNames, extruderAssignments,
                             plateObjectMap,
+                            plateFilamentMap,
                             allExtruderValues = allExtruderValuesMain
                         )
                         if (plateObjectMap.isNotEmpty()) {
@@ -184,6 +186,7 @@ object ThreeMfParser {
                             plateId = plateId,
                             name = name,
                             objectIds = objIds,
+                            filamentIndices = plateFilamentMap[plateId] ?: emptySet(),
                             printable = firstItem?.printable ?: true,
                             transform = firstItem?.transform ?: floatArrayOf(1f,0f,0f, 0f,1f,0f, 0f,0f,1f, 0f,0f,0f),
                             thumbnailBytes = thumbnailBytes
@@ -203,6 +206,7 @@ object ThreeMfParser {
                             plateId = plateId,
                             name = name,
                             objectIds = listOf(item.objectId),
+                            filamentIndices = plateFilamentMap[plateId] ?: emptySet(),
                             printable = item.printable,
                             transform = item.transform,
                             thumbnailBytes = thumbnailBytes
@@ -260,10 +264,14 @@ object ThreeMfParser {
             ZipFile(file).use { zip ->
                 val entryNames = zip.entries().toList().map { it.name }.toSet()
                 val isBambu = entryNames.any { it in BAMBU_MARKERS }
+                val modelBytes = zip.getEntry("3D/3dmodel.model")
+                    ?.let { zip.getInputStream(it).readBytes() }
 
                 val plateNames = mutableMapOf<Int, String>()
                 val objectNames = mutableMapOf<String, String>()
                 val extruderAssignments = mutableMapOf<String, Int>()
+                val plateObjectMap = mutableMapOf<Int, MutableList<String>>()
+                val plateFilamentMap = mutableMapOf<Int, Set<Int>>()
 
                 // Check model_settings.config first, then Slic3r_PE_model.config
                 // (restructurePlateFile writes the latter for compound objects)
@@ -274,6 +282,8 @@ object ThreeMfParser {
                     parseModelSettingsConfig(
                         zip.getInputStream(msEntry),
                         plateNames, objectNames, extruderAssignments,
+                        plateObjectMap,
+                        plateFilamentMap,
                         allExtruderValues = allExtruderValues
                     )
                 }
@@ -283,12 +293,35 @@ object ThreeMfParser {
                 // which only tracks max-per-object and misses multi-part colours.
                 val uniqueExtruders = if (allExtruderValues.isNotEmpty())
                     allExtruderValues else extruderAssignments.values.toSet()
+                val componentPathsByObject = modelBytes?.let { parseComponentPaths(it) }.orEmpty()
+                val visualColorCountByPlate = computeVisualColorCountByPlate(
+                    zip = zip,
+                    modelBytes = modelBytes,
+                    plateObjectMap = plateObjectMap,
+                    componentPathsByObject = componentPathsByObject,
+                    extruderAssignments = extruderAssignments
+                )
+                val lightweightPlates = plateFilamentMap.keys.sorted().map { plateId ->
+                    ThreeMfPlate(
+                        plateId = plateId,
+                        name = plateNames[plateId] ?: "Plate $plateId",
+                        objectIds = plateObjectMap[plateId]?.toList() ?: emptyList(),
+                        filamentIndices = plateFilamentMap[plateId] ?: emptySet()
+                    )
+                }
+                val effectiveExtruders = visualColorCountByPlate.values.maxOrNull()?.let { visualCount ->
+                    if (visualCount > uniqueExtruders.size) {
+                        (1..visualCount).toSet()
+                    } else {
+                        uniqueExtruders
+                    }
+                } ?: uniqueExtruders
                 ThreeMfInfo(
                     objects = emptyList(),
-                    plates = emptyList(),
+                    plates = lightweightPlates,
                     isBambu = isBambu,
                     isMultiPlate = false,
-                    usedExtruderIndices = uniqueExtruders,
+                    usedExtruderIndices = effectiveExtruders,
                     objectExtruderMap = extruderAssignments.toMap()
                 )
             }
@@ -376,6 +409,37 @@ object ThreeMfParser {
         return items
     }
 
+    private fun parseComponentPaths(modelBytes: ByteArray): Map<String, List<String>> {
+        val componentPaths = mutableMapOf<String, MutableList<String>>()
+        val parser = createParser(modelBytes.inputStream())
+        var currentObjectId: String? = null
+
+        while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+            when (parser.eventType) {
+                XmlPullParser.START_TAG -> {
+                    when (parser.name) {
+                        "object" -> currentObjectId = parser.getAttributeValue(null, "id")
+                        "component" -> {
+                            val objectId = currentObjectId
+                            val path = parser.getAttributeValue(null, "p:path")
+                                ?: parser.getAttributeValue(null, "path")
+                            if (objectId != null && !path.isNullOrBlank()) {
+                                componentPaths.getOrPut(objectId) { mutableListOf() }
+                                    .add(path.trimStart('/'))
+                            }
+                        }
+                    }
+                }
+                XmlPullParser.END_TAG -> {
+                    if (parser.name == "object") currentObjectId = null
+                }
+            }
+            parser.next()
+        }
+
+        return componentPaths
+    }
+
     private fun detectPaintData(modelBytes: ByteArray): Boolean {
         // Scan for paint_color or mmu_segmentation attributes
         val content = String(modelBytes, Charsets.UTF_8)
@@ -413,6 +477,53 @@ object ThreeMfParser {
             }
         }
         return false
+    }
+
+    private fun streamCollectPaintSpecs(input: InputStream): Set<String> {
+        val specs = linkedSetOf<String>()
+        input.bufferedReader().useLines { lines ->
+            lines.forEach { line ->
+                extractPaintSpec(line)?.let { spec ->
+                    if (spec.isNotBlank()) specs.add(spec)
+                }
+            }
+        }
+        return specs
+    }
+
+    private fun extractPaintSpec(line: String): String? {
+        return Regex("""(?:paint_color|mmu_segmentation|slic3rpe:mmu_segmentation)="([^"]+)"""")
+            .find(line)
+            ?.groupValues
+            ?.getOrNull(1)
+    }
+
+    private fun computeVisualColorCountByPlate(
+        zip: ZipFile,
+        modelBytes: ByteArray?,
+        plateObjectMap: Map<Int, List<String>>,
+        componentPathsByObject: Map<String, List<String>>,
+        extruderAssignments: Map<String, Int>
+    ): Map<Int, Int> {
+        val fallbackPlateObjectMap = if (plateObjectMap.isNotEmpty() || modelBytes == null) {
+            plateObjectMap
+        } else {
+            parseBuildItems(modelBytes).mapIndexed { index, item ->
+                (index + 1) to listOf(item.objectId)
+            }.toMap()
+        }
+
+        return fallbackPlateObjectMap.mapValues { (_, objectIds) ->
+            val baseCount = objectIds.mapNotNull { extruderAssignments[it] }.toSet().size
+            val paintSpecs = linkedSetOf<String>()
+            objectIds.forEach { objectId ->
+                componentPathsByObject[objectId].orEmpty().forEach { path ->
+                    val entry = zip.getEntry(path) ?: return@forEach
+                    paintSpecs += streamCollectPaintSpecs(zip.getInputStream(entry))
+                }
+            }
+            baseCount + paintSpecs.size
+        }
     }
 
     private fun containsBytes(haystack: ByteArray, haystackLen: Int, needle: ByteArray): Boolean {
@@ -559,6 +670,7 @@ object ThreeMfParser {
         objectNames: MutableMap<String, String>,
         extruderAssignments: MutableMap<String, Int>,
         plateObjectMap: MutableMap<Int, MutableList<String>> = mutableMapOf(),
+        plateFilamentMap: MutableMap<Int, Set<Int>> = mutableMapOf(),
         allExtruderValues: MutableSet<Int>? = null
     ) {
         try {
@@ -604,6 +716,19 @@ object ThreeMfParser {
                                     key == "plater_name" && currentPlateId != null -> {
                                         currentPlateId?.toIntOrNull()?.let { id ->
                                             if (value.isNotBlank()) plateNames[id] = value
+                                        }
+                                    }
+                                    key == "filament_maps" && currentPlateId != null -> {
+                                        currentPlateId?.toIntOrNull()?.let { id ->
+                                            val filamentIndices = value
+                                                .trim()
+                                                .split(Regex("\\s+"))
+                                                .mapNotNull { token -> token.toIntOrNull() }
+                                                .filter { it > 0 }
+                                                .toSet()
+                                            if (filamentIndices.isNotEmpty()) {
+                                                plateFilamentMap[id] = filamentIndices
+                                            }
                                         }
                                     }
                                     // plate → model_instance → <metadata key="object_id" value="N"/>

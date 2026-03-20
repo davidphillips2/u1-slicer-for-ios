@@ -71,8 +71,11 @@ class ThreeMfParserTest {
                 ThreeMfObject("1", "Part", 100, 200)
             ),
             plates = listOf(
-                ThreeMfPlate(1, "Plate 1", listOf("1"), true,
-                    floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f))
+                ThreeMfPlate(
+                    1, "Plate 1", listOf("1"),
+                    printable = true,
+                    transform = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)
+                )
             ),
             isBambu = true,
             isMultiPlate = false,
@@ -96,10 +99,16 @@ class ThreeMfParserTest {
                 ThreeMfObject("2", "Part B", 60, 120)
             ),
             plates = listOf(
-                ThreeMfPlate(1, "Plate 1", listOf("1"), true,
-                    floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)),
-                ThreeMfPlate(2, "Plate 2", listOf("2"), true,
-                    floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f))
+                ThreeMfPlate(
+                    1, "Plate 1", listOf("1"),
+                    printable = true,
+                    transform = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)
+                ),
+                ThreeMfPlate(
+                    2, "Plate 2", listOf("2"),
+                    printable = true,
+                    transform = floatArrayOf(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f)
+                )
             ),
             isBambu = true,
             isMultiPlate = true

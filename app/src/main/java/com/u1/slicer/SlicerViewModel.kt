@@ -724,7 +724,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 // _threeMfInfo.value holds the correctly-merged info from openModel().
                 val preSelectInfo = _threeMfInfo.value
                 _threeMfInfo.value = if (preSelectInfo != null)
-                    mergeThreeMfInfoForPlate(plateInfo, preSelectInfo)
+                    mergeThreeMfInfoForPlate(plateInfo, preSelectInfo, plateId)
                 else
                     plateInfo
                 toolRemapSlots = null
@@ -1824,14 +1824,31 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
          */
         fun mergeThreeMfInfoForPlate(
             plateInfo: com.u1.slicer.bambu.ThreeMfInfo,
-            sourceInfo: com.u1.slicer.bambu.ThreeMfInfo
+            sourceInfo: com.u1.slicer.bambu.ThreeMfInfo,
+            selectedPlateId: Int? = null
         ): com.u1.slicer.bambu.ThreeMfInfo {
+            val sourcePlateFilamentIndices = selectedPlateId?.let { plateId ->
+                sourceInfo.plates
+                    .firstOrNull { it.plateId == plateId }
+                    ?.filamentIndices
+                    ?.filter { it > 0 }
+                    ?.toSet()
+                    ?: emptySet()
+            } ?: emptySet()
+            val plateFilamentIndices = plateInfo.plates
+                .flatMap { it.filamentIndices }
+                .filter { it > 0 }
+                .toSet()
             // Filter colors to only those extruder indices used on this plate.
             // usedExtruderIndices are 1-based; detectedColors is 0-indexed.
             // Filter whenever usedExtruderIndices is populated (size >= 1) AND
             // there are multiple source colors to filter from. This correctly
             // handles single-extruder plates (showing only 1 color instead of all).
-            val usedIndices = plateInfo.usedExtruderIndices
+            val usedIndices = listOf(
+                sourcePlateFilamentIndices,
+                plateFilamentIndices,
+                plateInfo.usedExtruderIndices
+            ).maxByOrNull { it.size } ?: emptySet()
             val filteredColors = if (usedIndices.isNotEmpty() && sourceInfo.detectedColors.size > 1) {
                 usedIndices.sorted().mapNotNull { idx ->
                     sourceInfo.detectedColors.getOrNull(idx - 1) // 1-based → 0-indexed

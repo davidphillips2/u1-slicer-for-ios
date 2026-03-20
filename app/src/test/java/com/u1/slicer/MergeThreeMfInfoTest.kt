@@ -48,6 +48,68 @@ class MergeThreeMfInfoTest {
     }
 
     @Test
+    fun `mergeThreeMfInfoForPlate uses selected source plate filament indices when extracted plate under-detects colours`() {
+        val sourceInfo = ThreeMfInfo(
+            objects = emptyList(),
+            plates = listOf(
+                com.u1.slicer.bambu.ThreeMfPlate(
+                    plateId = 3,
+                    name = "4 Colour",
+                    objectIds = listOf("58"),
+                    filamentIndices = setOf(1, 2)
+                )
+            ),
+            isBambu = true,
+            isMultiPlate = true,
+            detectedColors = listOf("#101010", "#202020", "#303030", "#404040"),
+            detectedExtruderCount = 4
+        )
+        val plateInfo = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1)
+        )
+
+        val merged = SlicerViewModel.mergeThreeMfInfoForPlate(plateInfo, sourceInfo, selectedPlateId = 3)
+
+        assertEquals(listOf("#101010", "#202020"), merged.detectedColors)
+        assertEquals(2, merged.detectedExtruderCount)
+    }
+
+    @Test
+    fun `mergeThreeMfInfoForPlate keeps richer extracted plate colours when they exceed source filament maps`() {
+        val sourceInfo = ThreeMfInfo(
+            objects = emptyList(),
+            plates = listOf(
+                com.u1.slicer.bambu.ThreeMfPlate(
+                    plateId = 3,
+                    name = "4 Colour",
+                    objectIds = listOf("58"),
+                    filamentIndices = setOf(1, 2)
+                )
+            ),
+            isBambu = true,
+            isMultiPlate = true,
+            detectedColors = listOf("#101010", "#202020", "#303030", "#404040"),
+            detectedExtruderCount = 4
+        )
+        val plateInfo = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3, 4)
+        )
+
+        val merged = SlicerViewModel.mergeThreeMfInfoForPlate(plateInfo, sourceInfo, selectedPlateId = 3)
+
+        assertEquals(listOf("#101010", "#202020", "#303030", "#404040"), merged.detectedColors)
+        assertEquals(4, merged.detectedExtruderCount)
+    }
+
+    @Test
     fun `mergeThreeMfInfo prefers processed objectExtruderMap when available`() {
         val origInfo = ThreeMfInfo(
             objects = emptyList(), plates = emptyList(),

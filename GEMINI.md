@@ -11,8 +11,8 @@
 
 **Test:**
 ```bash
-./gradlew testDebugUnitTest                 # 375 JVM unit tests
-./gradlew connectedDebugAndroidTest         # 109 instrumented tests
+./gradlew testDebugUnitTest                 # 406 JVM unit tests
+./gradlew connectedDebugAndroidTest         # 117 instrumented tests
 ```
 
 **Target device:** `<pixel-8a-device-id>` (Pixel 8a)
@@ -21,6 +21,7 @@
 - `<pixel-9a-device-id>` (Pixel 9a) — user's personal device, no automated tests
 
 **App ID:** `com.u1.slicer.orca`
+**Current release:** `v1.4.7` (`versionCode 96`)
 
 ## Backlog
 

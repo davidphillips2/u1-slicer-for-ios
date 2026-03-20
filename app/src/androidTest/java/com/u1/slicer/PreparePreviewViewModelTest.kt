@@ -95,6 +95,53 @@ class PreparePreviewViewModelTest {
         }
     }
 
+    @Test
+    fun slipSlidePlate3_selectPlate_keepsFourVisiblePrepareColours() {
+        val application = targetContext.applicationContext as U1SlicerApplication
+        val viewModel = SlicerViewModel(application)
+        val modelFile = copyAssetToCache("slip slide spin fidget.3mf")
+
+        try {
+            viewModel.loadModelFromFile(modelFile)
+
+            waitUntil("plate selector visible") {
+                viewModel.showPlateSelector.value
+            }
+
+            viewModel.selectPlate(3)
+
+            waitUntil("slip slide plate 3 loaded with color mapping", timeoutMs = 90_000L) {
+                viewModel.state.value is SlicerViewModel.SlicerState.ModelLoaded &&
+                    viewModel.colorMapping.value != null
+            }
+
+            val info = viewModel.threeMfInfo.value
+            val mapping = viewModel.colorMapping.value
+
+            assertNotNull("Slip/slide plate 3 info should be available", info)
+            assertNotNull("Slip/slide plate 3 color mapping should be available", mapping)
+
+            info!!
+            mapping!!
+
+            assertTrue(
+                "Slip/slide plate 3 should keep at least 4 detected colours in Prepare state, got ${info.detectedColors}",
+                info.detectedColors.size >= 4
+            )
+            assertTrue(
+                "Slip/slide plate 3 should keep at least 4 visible slots in Prepare state, got $mapping",
+                mapping.distinct().size >= 4
+            )
+            assertTrue(
+                "Slip/slide plate 3 should expose at least 4 non-blank active extruder colours, got ${viewModel.activeExtruderColors.value}",
+                viewModel.activeExtruderColors.value.count { it.isNotBlank() } >= 4
+            )
+        } finally {
+            viewModel.clearModel()
+            modelFile.delete()
+        }
+    }
+
     private fun copyAssetToCache(assetName: String): File {
         val outFile = File(targetContext.cacheDir, assetName.replace("/", "_"))
         assetContext.assets.open(assetName).use { input ->

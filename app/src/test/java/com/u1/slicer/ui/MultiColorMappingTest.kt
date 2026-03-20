@@ -41,12 +41,13 @@ class MultiColorMappingTest {
      * MUST FAIL on STUB.
      */
     @Test
-    fun ensureMultiSlotMapping_allZero_fourColors_distributesToAtLeastTwoSlots() {
+    fun ensureMultiSlotMapping_allZero_fourColors_distributesToFourSlots() {
         val rawMapping = listOf(0, 0, 0, 0)  // four colours, all to slot 0
         val result = ensureMultiSlotMapping(rawMapping, colorCount = 4)
-        assertTrue(
-            "Four-colour model with empty presets must use >= 2 slots, got $result",
-            result.distinct().size >= 2
+        assertEquals(
+            "Four-colour model should start with 4 distinct slots when possible, got $result",
+            4,
+            result.distinct().size
         )
     }
 
@@ -86,14 +87,15 @@ class MultiColorMappingTest {
         assertEquals("Already-distinct mapping should be unchanged", rawMapping, result)
     }
 
-    /**
-     * Four colours with two different slots already: no change.
-     */
     @Test
-    fun ensureMultiSlotMapping_partiallyDistinct_unchanged() {
-        val rawMapping = listOf(0, 1, 0, 2)  // three distinct slots
+    fun ensureMultiSlotMapping_fourColorsCollapsedToThree_distributesToFourSlots() {
+        val rawMapping = listOf(0, 1, 0, 2)
         val result = ensureMultiSlotMapping(rawMapping, colorCount = 4)
-        assertEquals("Mapping with 3 distinct slots should be unchanged", rawMapping, result)
+        assertEquals(
+            "Four-colour model should start with 4 distinct slots when possible, got $result",
+            listOf(0, 1, 2, 3),
+            result
+        )
     }
 
     /**
@@ -123,6 +125,17 @@ class MultiColorMappingTest {
         assertTrue(
             "All-same-slot mapping must be distributed for 3-colour model, got $result",
             result.distinct().size >= 2
+        )
+    }
+
+    @Test
+    fun ensureMultiSlotMapping_fourColorsCollapsedToTwo_distributesToFourSlots() {
+        val rawMapping = listOf(0, 1, 0, 1)
+        val result = ensureMultiSlotMapping(rawMapping, colorCount = 4)
+        assertEquals(
+            "Four-colour model should not collapse to two slots, got $result",
+            listOf(0, 1, 2, 3),
+            result
         )
     }
 }

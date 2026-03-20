@@ -67,7 +67,7 @@ fun findClosestExtruder(color: String, presets: List<ExtruderPreset>): ExtruderP
 fun ensureMultiSlotMapping(rawMapping: List<Int>, colorCount: Int): List<Int> =
     when {
         colorCount <= 1 -> rawMapping
-        colorCount <= 3 && rawMapping.distinct().size < colorCount ->
+        colorCount <= 4 && rawMapping.distinct().size < colorCount ->
             (0 until colorCount).toList()
         rawMapping.distinct().size < 2 ->
             (0 until colorCount).map { it % 2 }  // 0,1,0,1,… across compact slots

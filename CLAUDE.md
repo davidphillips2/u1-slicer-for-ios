@@ -15,12 +15,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 ## Release
 
-1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.6` -> `1.4.7`)
+1. **Bump version** in `app/build.gradle` - increment both `versionCode` and `versionName` (e.g. `1.4.7` -> `1.4.8`)
 2. **Update docs** — update test counts in this file and `README.md` if they changed
 3. **Commit and push**:
    ```bash
    git add -p
-   git commit -m "bump: v1.4.7 - <short description>"
+   git commit -m "bump: v1.4.8 - <short description>"
    git push
    ```
 4. **Build the release APK**:
@@ -29,12 +29,12 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
    ```
 5. **Rename the APK** with the version number:
    ```bash
-   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.7.apk
+   cp app/build/outputs/apk/release/app-release.apk u1-slicer-v1.4.8.apk
    ```
 6. **Create a GitHub release** (never overwrite or delete an existing release — always use a new tag):
    ```bash
-   gh release create v1.4.7 u1-slicer-v1.4.7.apk \
-     --title "v1.4.7" \
+   gh release create v1.4.8 u1-slicer-v1.4.8.apk \
+     --title "v1.4.8" \
      --notes "Brief description of what changed."
    ```
 
@@ -44,7 +44,7 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 ```bash
 ./gradlew testDebugUnitTest                        # 406 JVM unit tests
-./gradlew connectedDebugAndroidTest                # 117 instrumented tests (uses Orchestrator)
+./gradlew connectedDebugAndroidTest                # 118 instrumented tests (uses Orchestrator)
 ```
 
 ### Unit tests (`app/src/test/`) - 406 tests across 26 classes
@@ -75,7 +75,7 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 - iewer/ModelRendererCameraTest.kt (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
 - iewer/ModelViewerViewTest.kt (3) — Prepare selection falls back from face-plane to bed-plane hit-testing when needed
 
-### Instrumented tests (`app/src/androidTest/`) - 117 tests across 13 classes
+### Instrumented tests (`app/src/androidTest/`) - 118 tests across 13 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
 - `data/SliceJobDaoTest.kt` (5) — Room DAO insert, ordering, delete
 - `data/GcodeSaveTruncationTest.kt` (2) — Save truncation regression

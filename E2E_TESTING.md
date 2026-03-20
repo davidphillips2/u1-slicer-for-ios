@@ -1,99 +1,72 @@
-# U1 Slicer — E2E Testing Progress
+# U1 Slicer - E2E Testing
 
-**Device**: <pixel-8a-device-id> (Pixel 8a, Android 14)
-**Branch**: main (uncommitted changes — BambuSanitizer/ThreeMfParser multi-plate fixes)
+Current release line: `v1.4.7` (`versionCode 96`)
+Primary test device: `<pixel-8a-device-id>` (Pixel 8a, Android 14)
 
-## What was fixed in this session
+## Automated baseline
 
-| Fix | File | Why |
-|-----|------|-----|
-| Multi-plate detection: use plate JSON count + virtual-plate positions (not build item count) | ThreeMfParser.kt | Old format (Dragon Scale, Shashibo) had no plate JSONs; Benchy had printable="0" items causing false positive |
-| `hasPlateJsons` field added to ThreeMfInfo | ThreeMfInfo.kt | Needed to pass correct flag to extractPlate() after sanitization strips plate JSONs |
-| `extractPlate()` accepts explicit `hasPlateJsons` param | BambuSanitizer.kt | process() strips plate_N.json; auto-detect on sanitised file always returned false |
-| `stripAssembleSection()` in `extractPlate()` | BambuSanitizer.kt | model_settings.config had assemble_items for all plates → OrcaSlicer rejected single-plate file |
-| `stripNonPrintableBuildItems()` called in `process()` | BambuSanitizer.kt | Benchy with printable="0" items caused "Coordinate outside allowed range" in Clipper |
-| Multi-color detection ignores extruders > 4 | BambuSanitizer.kt | Paint color markers use indices 5+ → falsely triggered restructuring → OOM |
-| OOM guard: skip restructuring if component files > 15 MB | BambuSanitizer.kt | Large multi-plate Bambu 3MFs exhausted Android heap |
-| Per-part volume entries in Slic3rModelConfig for non-restructured multi-color | BambuSanitizer.kt | Color assignments lost when restructuring was skipped |
-| `normalizePerFilamentArrays` always called (even for 1 extruder) | ProfileEmbedder.kt | 7-plate Bambu file embedded 7 filament entries → ThreeMfParser counted 7 extruders |
-| `cleanModelXmlForOrcaSlicer()` applied to all .model files | ProfileEmbedder.kt | BambuStudio requiredextensions="p" caused OrcaSlicer rejection |
-| `selectPlate()` updates `_threeMfInfo` with single-plate info | SlicerViewModel.kt | Full multi-plate info (7 extruders) was used after single-plate selection |
-| `startSlicing()` wrapped in try/catch | SlicerViewModel.kt | Unhandled exceptions left UI stuck at 100% |
-| Thumbnail injection non-fatal try/catch | SlicerViewModel.kt | Crash in thumbnail injection lost slice result |
+- JVM unit tests: `406`
+- Instrumented tests: `117`
+- Full automated total: `523`
 
-## Test Files Matrix
+Run before release:
 
-| File | Type | Multi-plate | Colors | Move | Slice | Status |
-|------|------|-------------|--------|------|-------|--------|
-| 3DBenchy.stl | STL | No | 1 | — | — | NOT TESTED |
-| tetrahedron.stl | STL | No | 1 | — | — | NOT TESTED |
-| calib-cube-10-dual-colour-merged.3mf | 3MF | No | 2 | ✓ | ✓ | NOT TESTED |
-| Dragon Scale infinity.3mf | 3MF | Yes (old fmt) | 2 | ✓ | ✓ | NOT TESTED |
-| Dragon Scale infinity-1-plate-2-colours.3mf | 3MF | No | 2 | ✓ | ✓ | NOT TESTED |
-| Dragon Scale infinity-1-plate-2-colours-new-plate.3mf | 3MF | No | 2 | ✓ | ✓ | NOT TESTED |
-| Shashibo-h2s-textured.3mf | 3MF | Yes (old fmt) | 2 | ✓ | ✓ | PASS (user confirmed) |
-| PrusaSlicer-printables-Korok_mask_4colour.3mf | 3MF | No | 4 | ✓ | ✓ | NOT TESTED |
-| colored_3DBenchy (1).3mf | 3MF | No? | 1+ | ✓ | ✓ | NOT TESTED |
-| foldy+coaster (1).3mf | 3MF | Yes (new fmt) | 1+ | ✓ | ✓ | NOT TESTED |
-| Button-for-S-trousers.3mf | 3MF | ? | 1 | ✓ | ✓ | NOT TESTED |
-| u1-auxiliary-fan-cover-hex_mw.3mf | 3MF | No | 1 | ✓ | ✓ | NOT TESTED |
-
-## Test Protocol per file
-
-1. Load file in app
-2. If multi-plate: plate selector appears → select a plate → model loads correctly on bed
-3. Drag model to a new position on bed (not stuck in corner)
-4. Hit Slice → progress bar moves → completes (not stuck at 100%)
-5. Check logcat for exceptions: `adb -s <pixel-8a-device-id> logcat -s "SlicerVM" -d`
-6. Mark ✓ or note failure
-
-## Unit Test Status
-
-- JVM unit tests: 375 / 375 passing
-- Instrumented tests: 109 / 109 passing (see Run 2 below)
-
-## Automated Test Results
-
-### Run 2: 2026-03-08
-- JVM unit tests: **235/235 PASS**
-- Instrumented tests: **93/93 PASS** (2 new E2E pipeline tests added)
-  - `coloredBenchy_printableZeroStripped_slicesWithoutCoordinateError` ✓
-  - `fidgetCoaster_multiPlateWithoutPlateIds_extractsOneItemAtBedCentre` ✓
-  - `shashibo_plate1_slicesSuccessfully` ✓  ← NEW: full process→extract→embed→slice
-  - `dragonScale_fullViewModelPipeline_slicesSuccessfully` ✓  ← NEW: full ViewModel pipeline
-
-## Manual E2E Status
-
-Test files pushed to device at `/sdcard/Download/`
-App installed and running.
-
-To monitor logs during testing:
-```
-adb -s <pixel-8a-device-id> logcat -s "SlicerVM,BambuSanitizer,ThreeMfParser"
+```bash
+./gradlew testDebugUnitTest
+./gradlew connectedDebugAndroidTest
+./gradlew assembleRelease
 ```
 
-## What Automated Tests Cover Per File
+If Gradle's connected-test wrapper is flaky on this Windows machine, run the device suite directly:
 
-| File | Automated Coverage | Manual needed |
-|------|-------------------|---------------|
-| Shashibo-h2s-textured.3mf | `shashibo_loadsAfterExtractAndEmbed` + `shashibo_plate1_slicesSuccessfully` — full process→extract→embed→load→slice ✓ | Plate selector UI, drag |
-| Dragon Scale infinity.3mf | `dragonScale_detectedAsMultiPlate` + `dragonScale_plate1_loadsAndSlices` + `dragonScale_fullViewModelPipeline_slicesSuccessfully` ✓ | Plate selector UI, drag |
-| colored_3DBenchy (1).3mf | `coloredBenchy_printableZeroStripped_slicesWithoutCoordinateError` — printable=0 stripped, slices ✓ | Drag |
-| foldy+coaster (1).3mf | `fidgetCoaster_multiPlateWithoutPlateIds_extractsOneItemAtBedCentre` — position-based, at bed centre, slices ✓ | Plate selector UI, drag |
-| calib-cube-10-dual-colour-merged.3mf | Multiple dual-colour tests including temps, prime tower, retraction ✓ | Drag |
-| PrusaSlicer-printables-Korok_mask_4colour.3mf | `korokMask_fourColour_slicesWithoutFlowError` ✓ | Drag |
-| Button-for-S-trousers.3mf | `buttonTrousers_fullPipeline_slicesSuccessfully` ✓ | Drag |
-| u1-auxiliary-fan-cover-hex_mw.3mf | `fanCover_fullPipeline_slicesSuccessfully` + `fanCover_fullPipeline_gcodeHasNonZeroTemps` ✓ | Drag |
+```bash
+adb -s <pixel-8a-device-id> shell am instrument -w com.u1.slicer.orca.test/androidx.test.runner.AndroidJUnitRunner
+```
 
-## Manual E2E Still Required
+## Manual release checklist
 
-The Google Drive file picker used by the app renders in custom views inaccessible to UIAutomator — automated ADB tap-based testing of the file picker is not feasible.
+Use this checklist for final on-device sanity passes before publishing:
 
-**What needs manual verification on device (files in /sdcard/Download/):**
-1. Load each file via Browse Files
-2. Multi-plate files: **plate selector dialog appears** with correct plate count
-3. **Model appears on bed** (not stuck at corner/off-screen)
-4. **Drag model** — moves freely, stays within bed bounds
-5. **Slice completes** — progress bar reaches 100% and shows result (not stuck)
+1. Load the file
+2. If multi-plate, select the target plate
+3. Confirm Prepare preview shows the expected colour count and geometry
+4. Tap-select and drag an object
+5. Tap-select and drag the prime tower
+6. Slice successfully
+7. Confirm Preview colours match the intended tool usage
 
-**User confirmed working:** Shashibo (from session start) — loads, drag works, slices.
+Useful log capture:
+
+```bash
+adb -s <pixel-8a-device-id> logcat -s "SlicerVM,BambuSanitizer,ThreeMfParser,InlineModelPreview"
+```
+
+## Priority manual files
+
+These are the files most likely to catch regressions quickly:
+
+| File | Why it matters | Minimum manual check |
+|------|----------------|----------------------|
+| `calib-cube-10-dual-colour-merged.3mf` | Basic 2-colour baseline; post-update Clipper history | Prepare colours, move, slice |
+| `Dragon Scale infinity.3mf` plate 3 | Old-format multi-plate; tri-colour regression history | Plate 3 shows 3 colours, move, slice |
+| `Shashibo-h2s-textured.3mf` plate 5 | Old-format multi-plate textured case | Plate 5 preview colours, slice |
+| `3DBenchy-H2C-Multi-Color-Test-Print.3mf` | H2C sparse paint / 7-colour mapping | Prepare vs Preview colour parity |
+| `colored_3DBenchy (1).3mf` | Non-H2C painted benchy baseline | Prepare colours, slice |
+| `2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf` | Large Bambu file / former B18 OOM repro | Loads without OOM, slice preserves multi-colour output |
+
+## What automation already covers well
+
+- Multi-plate parsing and extraction
+- Bambu sanitization / profile embedding
+- Native Prepare preview export
+- Dragon plate 3 Prepare state and slice-output colour coverage
+- G-code generation and tool-remap behaviour
+- Large-model preview budget guardrails
+
+## What still benefits from manual verification
+
+- Final visual parity between Prepare and Preview
+- Plate selector UX
+- Tap-to-select / drag placement feel
+- Very large file load latency and messaging
+- Real-device colour perception on unusual palettes

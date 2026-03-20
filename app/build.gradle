@@ -12,23 +12,10 @@ android {
         applicationId "com.u1.slicer.orca"
         minSdk 26
         targetSdk 34
-        versionCode 96
-        versionName "1.4.7"
+        versionCode 97
+        versionName "1.4.8"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
-        // Disabled: using pre-built .so from jniLibs
-        // externalNativeBuild {
-        //     cmake {
-        //         cppFlags "-std=c++17 -O2 -DNDEBUG"
-        //         arguments "-DANDROID_STL=c++_shared", "-DSLICER_BACKEND=orca"
-        //         abiFilters 'arm64-v8a'
-        //     }
-        // }
-        ndk {
-            abiFilters 'arm64-v8a'
-        }
-
         vectorDrawables {
             useSupportLibrary true
         }
@@ -53,44 +40,6 @@ android {
         debug {
             minifyEnabled false
             signingConfig signingConfigs.debug
-        }
-    }
-
-    // Disabled: using pre-built .so from jniLibs instead (CMake build needs too much RAM)
-    // externalNativeBuild {
-    //     cmake {
-    //         path "src/main/cpp/CMakeLists.txt"
-    //         version "3.22.1"
-    //     }
-    // }
-
-    ndkVersion "26.1.10909125"
-
-    // Ensure the CMake-built .so overwrites the jniLibs pre-built after every native build.
-    // This keeps jniLibs in sync so it's packaged correctly without needing git-lfs.
-    tasks.whenTaskAdded { task ->
-        if (task.name.startsWith("buildCMakeDebug") || task.name.startsWith("buildCMakeRelWithDebInfo")) {
-            task.doLast {
-                // Try new Gradle path first, fall back to legacy path
-                def src = new File("${projectDir}/build/intermediates/cxx/Debug/165e6b6y/obj/arm64-v8a/libprusaslicer-jni.so")
-                if (!src.exists()) {
-                    // Walk the cxx/Debug directory to find the .so regardless of hash
-                    def cxxDir = new File("${projectDir}/build/intermediates/cxx/Debug")
-                    if (cxxDir.exists()) {
-                        cxxDir.eachDirRecurse { dir ->
-                            def candidate = new File(dir, "libprusaslicer-jni.so")
-                            if (candidate.exists() && candidate.length() > 1_000_000) src = candidate
-                        }
-                    }
-                }
-                if (!src.exists()) src = new File("${projectDir}/build/intermediates/cmake/debug/obj/arm64-v8a/libprusaslicer-jni.so")
-                def dst = new File("${projectDir}/src/main/jniLibs/arm64-v8a/libprusaslicer-jni.so")
-                if (src.exists()) {
-                    dst.parentFile.mkdirs()
-                    dst.bytes = src.bytes
-                    println "Synced CMake .so to jniLibs (${src.length() / 1_000_000}MB)"
-                }
-            }
         }
     }
 
