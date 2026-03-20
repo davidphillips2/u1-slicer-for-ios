@@ -8,6 +8,10 @@ Built with Kotlin, Jetpack Compose, and OrcaSlicer's C++ engine via JNI — no s
 
 Current release: `v1.4.10` (`versionCode 99`)
 
+## Security
+
+Security reports should be handled privately. See [SECURITY.md](SECURITY.md) for the preferred reporting flow.
+
 ## Features
 
 - **STL and 3MF slicing** — single-color, multi-color (up to 4 extruders), and paint-based (SEMM)

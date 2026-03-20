@@ -42,6 +42,10 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 
 > **Rule**: Never reuse or update a published GitHub release. If you need to fix something, bump to a new version.
 
+## Security
+
+Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep any private device IDs, adb targets, and local test notes in `CLAUDE.local.md` only.
+
 ## Test
 
 ```bash
