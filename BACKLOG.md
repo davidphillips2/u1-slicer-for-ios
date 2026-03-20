@@ -9,6 +9,16 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
 - Investigate memory usage across import, sanitize, embed, and native load for giant component-model files
 
+### B31: First slip/slide slice can hit a native Clipper range crash
+- Repro from `G:/My Drive/tes-data/clipper_investigation_bundle (1).txt`
+- First slice attempt on `slip slide spin fidget.3mf` failed with `Coordinate outside allowed range`
+- The failure path shows `hasCustomPlacement=true` and a wipe tower near the edge, so the placement/wipe-tower interaction needs another pass
+
+### B32: Printer can show a thumbnail from a different job after upload
+- Repro from `G:/My Drive/tes-data/output (2).gcode`
+- Moonraker/Klipper may reuse stale thumbnail metadata when multiple uploads use the same remote filename
+- Printer uploads should use a unique job filename instead of reusing `output.gcode`
+
 ## Open Features
 
 ### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork)

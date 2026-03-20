@@ -4,6 +4,8 @@ Android app wrapping **Snapmaker Orca 2.2.4** (OrcaSlicer fork) for Snapmaker U1
 Kotlin + Jetpack Compose + Material3 blue theme + Native C++ via JNI.
 App ID: `com.u1.slicer.orca`
 
+> For local-only device IDs, adb targets, and any machine-specific workflow notes, see `CLAUDE.local.md` if present.
+
 ## Build
 
 ```bash
@@ -46,6 +48,8 @@ Gradle daemon may OOM — use `--no-daemon` if builds fail.
 ./gradlew testDebugUnitTest                        # 406 JVM unit tests
 ./gradlew connectedDebugAndroidTest                # 118 instrumented tests (uses Orchestrator)
 ```
+
+For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` if present.
 
 ### Unit tests (`app/src/test/`) - 406 tests across 26 classes
 - `gcode/GcodeParserTest.kt` (18) — G-code parsing: layers, extrusion, extruder switching

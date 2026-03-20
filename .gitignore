@@ -19,6 +19,11 @@ build_log*.txt
 # App build output
 /app/build/
 
+# Local-only helper docs
+CLAUDE.local.md
+E2E_TESTING.local.md
+AGENTS.local.md
+
 # Native build artifacts
 app/src/main/cpp/extern/*/build/
 app/src/main/cpp/extern/*/lib/

@@ -15,10 +15,8 @@
 ./gradlew connectedDebugAndroidTest         # 118 instrumented tests
 ```
 
-**Target device:** `<pixel-8a-device-id>` (Pixel 8a)
-- Always pass `-s <pixel-8a-device-id>` to adb commands
-- `<nf22e1-device-id>` (NF22E1) — not a phone, never deploy to it
-- `<pixel-9a-device-id>` (Pixel 9a) — user's personal device, no automated tests
+**Target device:** See `AGENTS.local.md` for local device IDs and adb targets.
+**Public-safe rule:** never deploy automated tests to personal or non-phone devices.
 
 **App ID:** `com.u1.slicer.orca`
 **Current release:** `v1.4.10` (`versionCode 99`)

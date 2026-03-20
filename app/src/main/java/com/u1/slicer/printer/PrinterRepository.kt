@@ -57,13 +57,15 @@ class PrinterRepository(
     }
 
     suspend fun uploadAndPrint(gcodeFile: java.io.File, filename: String): Boolean {
-        val uploaded = client.uploadGcode(gcodeFile, filename)
+        val uploadName = buildPrinterUploadFilename(filename)
+        val uploaded = client.uploadGcode(gcodeFile, uploadName)
         if (!uploaded) return false
-        return client.startPrint(filename)
+        return client.startPrint(uploadName)
     }
 
     suspend fun uploadOnly(gcodeFile: java.io.File, filename: String): Boolean {
-        return client.uploadGcode(gcodeFile, filename)
+        val uploadName = buildPrinterUploadFilename(filename)
+        return client.uploadGcode(gcodeFile, uploadName)
     }
 
     suspend fun queryWebcamSnapshotCandidates(): List<String> = client.queryWebcamSnapshotCandidates()
@@ -76,4 +78,16 @@ class PrinterRepository(
 
     suspend fun getLedState(): Boolean? = client.getLedState()
     suspend fun setLed(on: Boolean): Boolean = client.setLed(on)
+
+    companion object {
+        internal fun buildPrinterUploadFilename(sourceName: String, nowMillis: Long = System.currentTimeMillis()): String {
+            val base = sourceName
+                .substringBeforeLast('.', sourceName)
+                .replace(Regex("""[^A-Za-z0-9._-]+"""), "_")
+                .replace(Regex("""_+"""), "_")
+                .trim('_')
+                .ifBlank { "print" }
+            return "${base}_$nowMillis.gcode"
+        }
+    }
 }

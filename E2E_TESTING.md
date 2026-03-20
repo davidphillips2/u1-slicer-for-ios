@@ -1,7 +1,7 @@
 # U1 Slicer - E2E Testing
 
 Current release line: `v1.4.10` (`versionCode 99`)
-Primary test device: `<pixel-8a-device-id>` (Pixel 8a, Android 14)
+Primary test device: See `E2E_TESTING.local.md` for the private device IDs used on this machine.
 
 ## Automated baseline
 
