@@ -1,13 +1,13 @@
 # U1 Slicer - E2E Testing
 
-Current release line: `v1.4.7` (`versionCode 96`)
+Current release line: `v1.4.10` (`versionCode 99`)
 Primary test device: `<pixel-8a-device-id>` (Pixel 8a, Android 14)
 
 ## Automated baseline
 
 - JVM unit tests: `406`
-- Instrumented tests: `117`
-- Full automated total: `523`
+- Instrumented tests: `118`
+- Full automated total: `524`
 
 Run before release:
 

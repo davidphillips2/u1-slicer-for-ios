@@ -24,6 +24,7 @@ object GcodeThumbnailInjector {
 
     // Keywords to score preview images in 3MF metadata/ folder
     private val SCORE_KEYWORDS = listOf("thumbnail", "preview", "cover", "top", "plate", "pick")
+    private val PLATE_HINT_REGEX = Regex("""(?i)plate[_-]?(\d+)""")
     private val THUMBNAIL_SIZES = listOf(48 to 48, 300 to 300)
 
     /**
@@ -36,7 +37,7 @@ object GcodeThumbnailInjector {
             return false
         }
 
-        val bitmap = extractPreviewImage(sourceFile) ?: return false
+        val bitmap = extractPreviewImage(sourceFile, inferPlateHint(sourceFile.name)) ?: return false
         val blocks = buildThumbnailBlocks(bitmap)
         if (blocks.isEmpty()) return false
 
@@ -55,7 +56,7 @@ object GcodeThumbnailInjector {
     /**
      * Extract the best preview image from a 3MF ZIP file's metadata/ folder.
      */
-    internal fun extractPreviewImage(threeMfFile: File): Bitmap? {
+    internal fun extractPreviewImage(threeMfFile: File, plateHint: Int? = null): Bitmap? {
         return try {
             ZipFile(threeMfFile).use { zip ->
                 val candidates = zip.entries().asSequence()
@@ -65,15 +66,8 @@ object GcodeThumbnailInjector {
 
                 if (candidates.isEmpty()) return null
 
-                // Score each candidate by keyword matches in the filename
-                val scored = candidates.map { entry ->
-                    val name = entry.name.lowercase()
-                    val score = SCORE_KEYWORDS.sumOf { kw -> if (name.contains(kw)) 1L else 0L }
-                    entry to score
-                }.sortedByDescending { it.second }
-
-                val bestEntry = scored.first().first
-                Log.d(TAG, "Using preview image: ${bestEntry.name} (score=${scored.first().second})")
+                val bestEntry = pickBestPreviewEntry(candidates, plateHint)
+                Log.d(TAG, "Using preview image: ${bestEntry.name}")
 
                 val bytes = zip.getInputStream(bestEntry).use { it.readBytes() }
                 BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
@@ -82,6 +76,49 @@ object GcodeThumbnailInjector {
             Log.w(TAG, "Failed to extract preview from 3MF: ${e.message}")
             null
         }
+    }
+
+    internal fun pickBestPreviewEntry(candidates: List<java.util.zip.ZipEntry>, plateHint: Int? = null): java.util.zip.ZipEntry {
+        return candidates
+            .map { entry -> entry to scorePreviewEntry(entry.name, plateHint) }
+            .sortedWith(compareByDescending<Pair<java.util.zip.ZipEntry, Long>> { it.second }
+                .thenBy { candidates.indexOf(it.first) })
+            .first()
+            .first
+    }
+
+    internal fun scorePreviewEntry(entryName: String, plateHint: Int? = null): Long {
+        val name = entryName.lowercase()
+        var score = SCORE_KEYWORDS.sumOf { kw -> if (name.contains(kw)) 1L else 0L }
+
+        if (plateHint != null) {
+            val exactHints = listOf(
+                "plate_no_light_${plateHint}.png" to 120L,
+                "plate_no_light_${plateHint}.jpg" to 120L,
+                "plate_no_light_${plateHint}.jpeg" to 120L,
+                "plate_${plateHint}.png" to 110L,
+                "plate_${plateHint}.jpg" to 110L,
+                "plate_${plateHint}.jpeg" to 110L,
+                "top_${plateHint}.png" to 100L,
+                "top_${plateHint}.jpg" to 100L,
+                "top_${plateHint}.jpeg" to 100L,
+                "pick_${plateHint}.png" to 90L,
+                "pick_${plateHint}.jpg" to 90L,
+                "pick_${plateHint}.jpeg" to 90L
+            )
+            for ((suffix, bonus) in exactHints) {
+                if (name.endsWith(suffix)) {
+                    score += bonus
+                    break
+                }
+            }
+        }
+
+        return score
+    }
+
+    internal fun inferPlateHint(sourceName: String): Int? {
+        return PLATE_HINT_REGEX.find(sourceName)?.groupValues?.getOrNull(1)?.toIntOrNull()
     }
 
     /**
@@ -105,15 +142,18 @@ object GcodeThumbnailInjector {
             rgb.recycle()
 
             val b64 = Base64.encodeToString(pngBytes, Base64.NO_WRAP)
+            sb.append("; THUMBNAIL_BLOCK_START\n")
+            sb.append(";\n")
             sb.append("; thumbnail begin ${w}x${h} ${b64.length}\n")
-            // Split into 76-char lines
+            // Split into 78-char lines to mirror Orca's native thumbnail writer.
             var i = 0
             while (i < b64.length) {
-                val end = minOf(i + 76, b64.length)
+                val end = minOf(i + 78, b64.length)
                 sb.append("; ${b64.substring(i, end)}\n")
                 i = end
             }
             sb.append("; thumbnail end\n")
+            sb.append("; THUMBNAIL_BLOCK_END\n\n")
         }
         return sb.toString()
     }

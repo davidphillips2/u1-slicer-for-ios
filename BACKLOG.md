@@ -28,6 +28,7 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **B30**: Uploaded printer thumbnails now mirror Orca's native `THUMBNAIL_BLOCK_START/END` wrapping and line length so Moonraker/Klipper recognizes the embedded preview instead of showing the default icon
 - **I2**: First post-update Clipper "Coordinate outside allowed range" failure hardened again — FIXED v1.4.1
 - **Native Prepare Preview**: Prepare preview now uses native/Orca-backed mesh export instead of the old Kotlin-only path — DONE v1.4.0
 - **B24**: Stale slice config (skirt/prime tower not updating on re-slice) — FIXED v1.3.42
