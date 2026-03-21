@@ -4,20 +4,10 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Open Bugs
 
-### B33: Print status stuck at 0% (GitHub #8)
-- Reporter: kabakakao — printer status stays at 0% during a print
-- Investigate the Moonraker polling loop in `PrinterRepository`/`MoonrakerClient`: is `print_stats.progress` being parsed and surfaced correctly?
-- Check whether `PrinterStatus.printProgress` is wired to the UI and whether the polling interval is appropriate
-
 ### B34: Printer light button icon confused for app theme toggle (GitHub #7) — FIXED
 - The button used `Icons.Default.LightMode` (sun) / `Icons.Default.DarkMode` (moon) — identical to Android's theme-switch icons
 - Fixed: changed to `Icons.Default.Lightbulb` (yellow when on, dimmed when off) — clearly a physical light, not a UI theme toggle
 - There is no app-level light/dark theme switch; the app is dark-only
-
-### B35: "Upload" button confusingly does not start a print (GitHub #6)
-- Reporter: ThorinOkenshield — expects the Upload button to start printing; the Print button works
-- The Upload-only path is intentional (just deposits the file), but the UX distinction is unclear
-- Options: rename "Upload" to "Upload Only", add a tooltip/subtitle, or prompt the user after upload asking if they want to start the print now
 
 ### B18: OOM on large/complex 3MF files
 - Reproduce with: `C:\Users\kevin\Downloads\test-data\2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf`
@@ -27,20 +17,11 @@ Open bugs, features, and investigations. Everything else is done — see git log
 ### B31: First slip/slide slice can hit a native Clipper range crash
 - Repro from `G:/My Drive/tes-data/clipper_investigation_bundle (1).txt`
 - First slice attempt on `slip slide spin fidget.3mf` failed with `Coordinate outside allowed range`
-- The failure path shows `hasCustomPlacement=true` and a wipe tower near the edge, so the placement/wipe-tower interaction needs another pass
-
-### B32: Printer still shows the generic printer image after upload
-- Repro from `G:/My Drive/tes-data/output (2).gcode`
-- After upload, the printer falls back to its default/generic image instead of the file thumbnail
-- Suspected cause: Moonraker/Klipper thumbnail handling or upload metadata caching still needs investigation
+- Investigation: crash occurs on first slice after APK upgrade (`previousNativeGeneration=null`). Recovery via AlarmManager restart always succeeds. Pattern is consistent with stale native state after upgrade rather than a wipe-tower placement issue.
+- No further Kotlin-side fix available without a native rebuild. `UpgradeDetector` already clears cached slice state on version bump.
+- Leave open until a native-side fix is identified or the crash stops occurring after a clean-state slice.
 
 ## Open Features
-
-### F36: Plate type selector with bed-temp presets (GitHub #1, partial)
-- Reporter: ThorinOkenshield — wants a plate type picker (Textured PEI, Smooth PEI, Cool Plate, Engineering Plate) that auto-adjusts bed temperature
-- Textured PEI should be the default (current behavior)
-- Changing plate type should update `bedTemp` in `SliceConfig` to the recommended value for that surface + filament combination
-- The "slice settings default open" part of #1 is now done (v1.4.15)
 
 ### F35: Post-upgrade Clipper coordinate error — still occurring
 - Related to B31 / old I2 fix: users still hit "Coordinate outside allowed range" crashes after an app upgrade
@@ -54,12 +35,13 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - Wait for v1.0 / hardware-verified release before porting
 - Requires native .so rebuild
 
-### F27: Cancel slicing mid-operation
-- No way to abort a slice once started — user must wait or force-kill
-- Requires native cancellation support (check OrcaSlicer for a cancel flag in the slicing loop)
-
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **Color bug (SEMM)**: SEMM models with non-identity color remapping on Prepare screen now produce correct G-code T-commands — fixed `isIdentity` logic and suppressed extruderRemap in model_settings.config for paint-data models — FIXED v1.4.18
+- **B33**: Print progress stuck at 0% — `virtual_sdcard.progress` is now used as the primary progress source (falls back to `print_stats.progress` on older firmware) — FIXED v1.4.18
+- **B35**: Upload-only completion card now shows a hint: "To print, tap Print on the Preview screen or select the file on your printer." — FIXED v1.4.18
+- **F36**: Plate type selector (Textured PEI, Smooth PEI, Cool Plate, Engineering Plate) in slice settings Temperature section — auto-adjusts bed temp per filament material — DONE v1.4.18
+- **F27**: Cancel slicing button — soft cancel returns to ModelLoaded immediately; native slice runs to completion in background and result is discarded — DONE v1.4.18
 - **Upload-only bug**: "Print started!" was shown after upload-only; now shows "Uploaded successfully!" — FIXED
 - **F28**: Prime tower waste in Slice Summary — amber "Prime Tower Waste" row in SliceCompleteSummaryCard — DONE
 - **F33**: Feature-type color mode in 3D G-code viewer — Palette toggle in toolbar, 12-color feature palette — DONE

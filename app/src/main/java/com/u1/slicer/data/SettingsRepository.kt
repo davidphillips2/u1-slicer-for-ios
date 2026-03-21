@@ -42,6 +42,7 @@ class SettingsRepository(private val context: Context) {
         val SLICING_OVERRIDES = stringPreferencesKey("slicing_overrides")
         val MAKERWORLD_COOKIES = stringPreferencesKey("makerworld_cookies")
         val MAKERWORLD_COOKIES_ENABLED = booleanPreferencesKey("makerworld_cookies_enabled")
+        val PLATE_TYPE = stringPreferencesKey("plate_type")
     }
 
     val sliceConfig: Flow<SliceConfig> = context.dataStore.data.map { prefs ->
@@ -89,6 +90,10 @@ class SettingsRepository(private val context: Context) {
         if (json.isNotEmpty()) SlicingOverrides.fromJson(json) else SlicingOverrides()
     }
 
+    val plateType: Flow<PlateType> = context.dataStore.data.map { prefs ->
+        PlateType.fromName(prefs[Keys.PLATE_TYPE])
+    }
+
     suspend fun saveExtruderPresets(presets: List<ExtruderPreset>) {
         context.dataStore.edit { prefs ->
             prefs[Keys.EXTRUDER_PRESETS] = serializeExtruderPresets(presets)
@@ -122,6 +127,12 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.WIPE_TOWER_X] = config.wipeTowerX
             prefs[Keys.WIPE_TOWER_Y] = config.wipeTowerY
             prefs[Keys.WIPE_TOWER_WIDTH] = config.wipeTowerWidth
+        }
+    }
+
+    suspend fun savePlateType(plateType: PlateType) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.PLATE_TYPE] = plateType.name
         }
     }
 

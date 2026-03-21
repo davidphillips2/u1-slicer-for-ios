@@ -346,4 +346,57 @@ class MergeThreeMfInfoTest {
             colors
         )
     }
+
+    // ── Color bug fix (SEMM models) ────────────────────────────────────────────
+
+    @Test
+    fun `buildCompactExtruderRemap returns null for SEMM model (hasPaintData=true)`() {
+        // SEMM models: per-triangle paint states bypass extruder attribute remapping.
+        // GcodeToolRemapper handles physical slot assignment; extruderRemap must be null.
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3, 4),
+            hasPaintData = true
+        )
+        // Non-identity colorMapping that would normally produce a remap for per-object models
+        val colorMapping = listOf(2, 0, 3, 1)
+        assertNull(
+            "SEMM models must not produce an extruder remap (GcodeToolRemapper handles it)",
+            buildCompactExtruderRemap(info, colorMapping)
+        )
+    }
+
+    @Test
+    fun `buildCompactExtruderRemap returns null for SEMM model even with identity colorMapping`() {
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3, 4),
+            hasPaintData = true
+        )
+        assertNull(buildCompactExtruderRemap(info, listOf(0, 1, 2, 3)))
+    }
+
+    @Test
+    fun `buildCompactExtruderRemap still works for per-object models (hasPaintData=false)`() {
+        // Existing behaviour unchanged for models without paint data
+        val info = ThreeMfInfo(
+            objects = emptyList(),
+            plates = emptyList(),
+            isBambu = true,
+            isMultiPlate = false,
+            usedExtruderIndices = setOf(1, 2, 3, 4),
+            hasPaintData = false
+        )
+        val colorMapping = listOf(2, 0, 3, 1)
+        val remap = buildCompactExtruderRemap(info, colorMapping)
+        assertNotNull(remap)
+        // colorMapping=[2,0,3,1]: file extruder 1→slot2→compact3, 2→slot0→compact1, 3→slot3→compact4, 4→slot1→compact2
+        assertEquals(mapOf(1 to 3, 2 to 1, 3 to 4, 4 to 2), remap)
+    }
 }

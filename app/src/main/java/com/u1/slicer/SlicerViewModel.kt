@@ -22,6 +22,7 @@ import com.u1.slicer.gcode.ParsedGcode
 import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.OverrideMode
 import com.u1.slicer.data.OverrideValue
+import com.u1.slicer.data.PlateType
 import com.u1.slicer.data.SettingsBackup
 import com.u1.slicer.data.SliceConfig
 import com.u1.slicer.data.SliceJob
@@ -158,6 +159,10 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     val slicingOverrides: StateFlow<SlicingOverrides> = settingsRepo.slicingOverrides
         .stateIn(viewModelScope, SharingStarted.Eagerly, SlicingOverrides())
 
+    // Build plate type — determines bed temp preset per filament material
+    val plateType: StateFlow<PlateType> = settingsRepo.plateType
+        .stateIn(viewModelScope, SharingStarted.Eagerly, PlateType.DEFAULT)
+
     // MakerWorld cookies (for authenticated URL downloads)
     val makerWorldCookies: StateFlow<String> = settingsRepo.makerWorldCookies
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
@@ -226,7 +231,15 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             val saved = settingsRepo.sliceConfig.first()
-            _config.value = saved
+            // If no bedTemp was explicitly saved, apply the current plate type preset so the
+            // default 60°C doesn't override a plate-type-derived value on first launch.
+            val savedPlate = settingsRepo.plateType.first()
+            val resolvedBedTemp = if (saved.bedTemp == SliceConfig().bedTemp) {
+                savedPlate.bedTempFor(saved.filamentType)
+            } else {
+                saved.bedTemp
+            }
+            _config.value = saved.copy(bedTemp = resolvedBedTemp)
         }
     }
 
@@ -852,11 +865,21 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         // Compact extruder count: number of unique slots used, capped at 4 (U1 max).
         // G-code post-processing remaps T-commands to physical slots when non-identity.
         val extCount = usedSlots.size.coerceIn(1, 4)
-        // Store remap for any non-identity mapping — e.g. non-zero-based slots (E3+E4)
-        // or when model colors map to non-contiguous slots.
-        val compactSlots = usedSlots.take(extCount)
-        val isIdentity = compactSlots == (0 until extCount).toList()
-        toolRemapSlots = if (isIdentity) null else compactSlots
+        // SEMM (paint-based) models: extruderRemap in model_settings.config only affects
+        // per-volume extruder attributes, NOT mmu_segmentation_facets paint state filament
+        // indices.  For these models, use GcodeToolRemapper with the full colorMapping list
+        // as the remap table.  For per-object models, keep the existing compact-slot remap.
+        val hasPaintData = _threeMfInfo.value?.hasPaintData == true
+        toolRemapSlots = if (hasPaintData) {
+            // SEMM: non-identity colorMapping → GcodeToolRemapper handles remap
+            val isColorMappingIdentity = modelColorToExtruder == (0 until modelColorToExtruder.size).toList()
+            if (isColorMappingIdentity) null else modelColorToExtruder
+        } else {
+            // Per-object: extruderRemap in 3MF handles non-contiguous / non-identity slot order
+            val compactSlots = usedSlots.take(extCount)
+            val isIdentity = compactSlots == (0 until extCount).toList()
+            if (isIdentity) null else compactSlots
+        }
         val temps = IntArray(extCount) { i ->
             val slotIndex = usedSlots.getOrElse(i) { i }
             val preset = extruderPresets.firstOrNull { it.index == slotIndex }
@@ -1028,6 +1051,19 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Change the build plate type and update bedTemp to the recommended preset for the
+     * current filament material type.  Persists both the plate selection and the new bedTemp.
+     */
+    fun setPlateType(type: PlateType) {
+        val newBedTemp = type.bedTempFor(_config.value.filamentType)
+        _config.value = _config.value.copy(bedTemp = newBedTemp)
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepo.savePlateType(type)
+            settingsRepo.saveSliceConfig(_config.value)
+        }
+    }
+
     fun saveSlicingOverrides(overrides: SlicingOverrides) {
         if (lastModelInfo != null) profileNeedsReEmbed = true
         viewModelScope.launch(Dispatchers.IO) {
@@ -1173,6 +1209,24 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         pendingThumbnailBitmap = bitmap
     }
 
+    /**
+     * Soft-cancel an in-progress slice.  Transitions immediately back to ModelLoaded so the
+     * UI is responsive.  The native slice() call runs to completion in the background but its
+     * result is discarded once it finishes (checked via [sliceCancelled]).
+     *
+     * A native rebuild would allow hard cancellation via a JNI flag; this approach avoids
+     * that while still giving the user an immediate way out.
+     */
+    @Volatile private var sliceCancelled = false
+
+    fun cancelSlicing() {
+        if (_state.value is SlicerState.Slicing) {
+            sliceCancelled = true
+            backToModelLoaded()
+            Log.i("SlicerVM", "Slicing cancelled by user (native call will still complete in background)")
+        }
+    }
+
     fun startSlicing() {
         // Consume the bitmap atomically before launching so it is cleared even if slicing
         // fails early or throws — avoids leaking a full-resolution screen-capture Bitmap.
@@ -1206,6 +1260,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     SlicingService.updateProgress(context, maxPct, stage)
                 }
 
+                sliceCancelled = false
                 _state.value = SlicerState.Slicing(0, "Preparing...")
 
                 val (firstSliceThisLaunch, firstSliceAfterUpgrade) = diagnostics.markSliceStart()
@@ -1374,6 +1429,12 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 diagnostics.markSliceInProgress(currentModelFile!!.name)
                 val result = native.slice(sliceConfig)
 
+                // If the user cancelled while the native call was running, discard the result.
+                if (sliceCancelled) {
+                    Log.i("SlicerVM", "Discarding slice result after user cancel")
+                    return@launch
+                }
+
                 if (result != null && result.success) {
                     diagnostics.markSliceSucceeded()
                     diagnostics.recordEvent(
@@ -1467,6 +1528,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 _state.value = SlicerState.Error(clipperUserMessage("Slicing error: $errorMsg"))
             } finally {
+                sliceCancelled = false
                 diagnostics.clearSliceInProgress()
                 native.progressListener = null
                 SlicingService.stop(context)
@@ -2162,6 +2224,10 @@ internal fun buildCompactExtruderRemap(
     colorMapping: List<Int>?
 ): Map<Int, Int>? {
     if (colorMapping.isNullOrEmpty()) return null
+    // SEMM (paint-based) models: paint state filament indices are not affected by the
+    // extruder attribute remap in model_settings.config.  GcodeToolRemapper handles the
+    // physical slot assignment for these models, so suppress the XML extruder remap here.
+    if (info.hasPaintData) return null
 
     val compactSlotOrder = colorMapping.distinct().sorted().take(4)
     if (compactSlotOrder.isEmpty()) return null

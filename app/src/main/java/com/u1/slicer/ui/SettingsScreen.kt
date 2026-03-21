@@ -67,6 +67,7 @@ fun SettingsScreen(
 
     val currentOverrides by viewModel.slicingOverrides.collectAsState()
     var overrides by remember(currentOverrides) { mutableStateOf(currentOverrides) }
+    val plateType by viewModel.plateType.collectAsState()
 
     Scaffold(
         topBar = {
@@ -343,7 +344,9 @@ fun SettingsScreen(
 
                 SlicingOverridesAccordion(
                     overrides = overrides,
-                    onOverridesChange = { overrides = it }
+                    onOverridesChange = { overrides = it },
+                    plateType = plateType,
+                    onPlateTypeChange = { viewModel.setPlateType(it) }
                 )
             }
 

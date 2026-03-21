@@ -280,6 +280,72 @@ class MoonrakerClientTest {
         val client = MoonrakerClient() // baseUrl stays ""
         assertNull(client.remoteScreenUrl())
     }
+
+    // --- B33: virtual_sdcard progress parsing ---
+
+    @Test
+    fun `virtual_sdcard progress is preferred over print_stats progress`() {
+        // B33: print_stats.progress can stay 0 on some Moonraker/Klipper versions.
+        // Verify that the JSON parsing logic prefers virtual_sdcard.progress.
+        val status = org.json.JSONObject("""
+            {
+              "result": {
+                "status": {
+                  "print_stats": { "state": "printing", "progress": 0.0, "filename": "test.gcode", "print_duration": 60.0, "filament_used": 1000.0 },
+                  "virtual_sdcard": { "progress": 0.45 },
+                  "heater_bed": { "temperature": 60.0, "target": 60.0 },
+                  "extruder": { "temperature": 210.0, "target": 210.0 }
+                }
+              }
+            }
+        """.trimIndent())
+        val result = status.optJSONObject("result")?.optJSONObject("status")!!
+        val printStats = result.optJSONObject("print_stats")
+        val virtualSdcard = result.optJSONObject("virtual_sdcard")
+        val progress = (virtualSdcard?.optDouble("progress")
+            ?: printStats?.optDouble("progress"))?.toFloat() ?: 0f
+        assertEquals("virtual_sdcard.progress should be used", 0.45f, progress, 0.001f)
+    }
+
+    @Test
+    fun `falls back to print_stats progress when virtual_sdcard absent`() {
+        val status = org.json.JSONObject("""
+            {
+              "result": {
+                "status": {
+                  "print_stats": { "state": "printing", "progress": 0.3, "filename": "test.gcode", "print_duration": 30.0, "filament_used": 500.0 },
+                  "heater_bed": { "temperature": 60.0, "target": 60.0 },
+                  "extruder": { "temperature": 210.0, "target": 210.0 }
+                }
+              }
+            }
+        """.trimIndent())
+        val result = status.optJSONObject("result")?.optJSONObject("status")!!
+        val printStats = result.optJSONObject("print_stats")
+        val virtualSdcard = result.optJSONObject("virtual_sdcard")
+        val progress = (virtualSdcard?.optDouble("progress")
+            ?: printStats?.optDouble("progress"))?.toFloat() ?: 0f
+        assertEquals("print_stats.progress used as fallback", 0.3f, progress, 0.001f)
+    }
+
+    @Test
+    fun `progress is zero when both virtual_sdcard and print_stats absent`() {
+        val status = org.json.JSONObject("""
+            {
+              "result": {
+                "status": {
+                  "heater_bed": { "temperature": 25.0, "target": 0.0 }
+                }
+              }
+            }
+        """.trimIndent())
+        val result = status.optJSONObject("result")?.optJSONObject("status")!!
+        val printStats = result.optJSONObject("print_stats")
+        val virtualSdcard = result.optJSONObject("virtual_sdcard")
+        val progress = (virtualSdcard?.optDouble("progress")
+            ?: printStats?.optDouble("progress"))?.toFloat() ?: 0f
+        assertEquals("progress is 0 when neither field is present", 0f, progress, 0.001f)
+    }
 }
 
 // MoonrakerClientTestHelper removed — tests now use MoonrakerClient.normalizeUrl() directly.

@@ -178,7 +178,7 @@ class MoonrakerClient {
     suspend fun getStatus(): PrinterStatus = withContext(Dispatchers.IO) {
         if (baseUrl.isBlank()) return@withContext PrinterStatus(state = "disconnected", progress = 0f)
         try {
-            val queryParams = "print_stats&heater_bed&extruder&extruder1&extruder2&extruder3"
+            val queryParams = "print_stats&virtual_sdcard&heater_bed&extruder&extruder1&extruder2&extruder3"
             val request = Request.Builder()
                 .url(url("/printer/objects/query?$queryParams"))
                 .get().build()
@@ -194,6 +194,7 @@ class MoonrakerClient {
                 ?: return@withContext PrinterStatus(state = "standby", progress = 0f)
 
             val printStats = result.optJSONObject("print_stats")
+            val virtualSdcard = result.optJSONObject("virtual_sdcard")
             val heaterBed = result.optJSONObject("heater_bed")
             val extruder = result.optJSONObject("extruder")
 
@@ -216,9 +217,15 @@ class MoonrakerClient {
                 }
             }
 
+            // Prefer virtual_sdcard.progress — it tracks actual file read position and
+            // stays accurate throughout the print.  print_stats.progress can stick at 0
+            // on some Moonraker/Klipper builds (B33).  Fall back to print_stats.progress
+            // if virtual_sdcard is absent (older firmware).
+            val progress = (virtualSdcard?.optDouble("progress")
+                ?: printStats?.optDouble("progress"))?.toFloat() ?: 0f
             PrinterStatus(
                 state = printStats?.optString("state", "standby") ?: "standby",
-                progress = printStats?.optDouble("progress", 0.0)?.toFloat() ?: 0f,
+                progress = progress,
                 filename = printStats?.optString("filename", "") ?: "",
                 printDuration = printStats?.optDouble("print_duration", 0.0)?.toFloat() ?: 0f,
                 filamentUsed = printStats?.optDouble("filament_used", 0.0)?.toFloat() ?: 0f,

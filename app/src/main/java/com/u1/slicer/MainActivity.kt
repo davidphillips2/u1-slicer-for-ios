@@ -527,6 +527,7 @@ fun PrepareScreen(
     val state by viewModel.state.collectAsState()
     val config by viewModel.config.collectAsState()
     val slicingOverrides by viewModel.slicingOverrides.collectAsState()
+    val plateType by viewModel.plateType.collectAsState()
     val coreVersion by viewModel.coreVersion.collectAsState()
     val showPlateSelector by viewModel.showPlateSelector.collectAsState()
     val showMultiColorDialog by viewModel.showMultiColorDialog.collectAsState()
@@ -744,7 +745,9 @@ fun PrepareScreen(
                         ConfigCard(
                             config, viewModel::updateConfig,
                             slicingOverrides = slicingOverrides,
-                            onOverridesChange = { viewModel.saveSlicingOverrides(it) }
+                            onOverridesChange = { viewModel.saveSlicingOverrides(it) },
+                            plateType = plateType,
+                            onPlateTypeChange = { viewModel.setPlateType(it) }
                         )
                     }
                 }
@@ -931,7 +934,7 @@ fun PreviewScreen(
             ) {
                 when (val s = state) {
                 is SlicerViewModel.SlicerState.Slicing -> {
-                    SlicingProgressCard(s.progress, s.stage)
+                    SlicingProgressCard(s.progress, s.stage, onCancel = { viewModel.cancelSlicing() })
                 }
                 is SlicerViewModel.SlicerState.SliceComplete -> {
                     // Inline 3D G-code preview (auto-downsampled for large models)
@@ -1109,7 +1112,9 @@ fun ConfigCard(
     copyCount: Int = 1,
     onSetCopyCount: (Int) -> Unit = {},
     slicingOverrides: com.u1.slicer.data.SlicingOverrides = com.u1.slicer.data.SlicingOverrides(),
-    onOverridesChange: ((com.u1.slicer.data.SlicingOverrides) -> Unit)? = null
+    onOverridesChange: ((com.u1.slicer.data.SlicingOverrides) -> Unit)? = null,
+    plateType: com.u1.slicer.data.PlateType? = null,
+    onPlateTypeChange: ((com.u1.slicer.data.PlateType) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1141,7 +1146,9 @@ fun ConfigCard(
                 com.u1.slicer.ui.SlicingOverridesAccordion(
                     overrides = slicingOverrides,
                     onOverridesChange = onOverridesChange,
-                    defaultExpandedSection = null
+                    defaultExpandedSection = null,
+                    plateType = plateType,
+                    onPlateTypeChange = onPlateTypeChange
                 )
             }
 
@@ -1237,7 +1244,7 @@ fun SliceButton(onClick: () -> Unit) {
 }
 
 @Composable
-fun SlicingProgressCard(progress: Int, stage: String) {
+fun SlicingProgressCard(progress: Int, stage: String, onCancel: (() -> Unit)? = null) {
     // Track elapsed time so user knows slicing is still active even when
     // PrusaSlicer doesn't report sub-step progress for a while.
     var elapsedSeconds by remember { mutableIntStateOf(0) }
@@ -1312,6 +1319,14 @@ fun SlicingProgressCard(progress: Int, stage: String) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
             )
+            if (onCancel != null) {
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text("Cancel")
+                }
+            }
         }
     }
 }

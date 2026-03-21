@@ -186,10 +186,17 @@ fun PrinterScreen(
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1B3D1E)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
-                        Text("Uploaded successfully!", color = Color(0xFF81C784), fontWeight = FontWeight.Bold)
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
+                            Text("Uploaded successfully!", color = Color(0xFF81C784), fontWeight = FontWeight.Bold)
+                        }
+                        Text(
+                            "To print, tap Print on the Preview screen or select the file on your printer.",
+                            color = Color(0xFF81C784).copy(alpha = 0.75f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
                 is PrinterViewModel.SendingState.Error -> Card(

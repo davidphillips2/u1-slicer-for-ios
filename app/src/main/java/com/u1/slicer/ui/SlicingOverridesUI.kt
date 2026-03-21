@@ -23,6 +23,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.u1.slicer.data.OverrideMode
 import com.u1.slicer.data.OverrideValue
+import com.u1.slicer.data.PlateType
 import com.u1.slicer.data.SlicingOverrides
 
 /**
@@ -34,7 +35,9 @@ import com.u1.slicer.data.SlicingOverrides
 fun SlicingOverridesAccordion(
     overrides: SlicingOverrides,
     onOverridesChange: (SlicingOverrides) -> Unit,
-    defaultExpandedSection: String? = null
+    defaultExpandedSection: String? = null,
+    plateType: PlateType? = null,
+    onPlateTypeChange: ((PlateType) -> Unit)? = null
 ) {
     var expandedSection by remember { mutableStateOf<String?>(defaultExpandedSection) }
 
@@ -517,6 +520,9 @@ fun SlicingOverridesAccordion(
         expanded = expandedSection == "temp",
         onToggle = { expandedSection = if (expandedSection == "temp") null else "temp" }
     ) {
+        if (plateType != null && onPlateTypeChange != null) {
+            PlateTypeRow(selectedPlate = plateType, onPlateChange = onPlateTypeChange)
+        }
         OverrideRow(
             label = "Bed Temp",
             override = overrides.bedTemp,
@@ -733,6 +739,40 @@ fun OverrideDropdown(
                         expanded = false
                     }
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Plate type selector row: four chips for Textured PEI, Smooth PEI, Cool Plate, Engineering Plate.
+ * Selecting a plate updates the bed temperature preset automatically via [onPlateChange].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlateTypeRow(
+    selectedPlate: PlateType,
+    onPlateChange: (PlateType) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("Plate Type", style = MaterialTheme.typography.bodyMedium)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            PlateType.entries.forEachIndexed { index, plate ->
+                SegmentedButton(
+                    selected = selectedPlate == plate,
+                    onClick = { onPlateChange(plate) },
+                    shape = SegmentedButtonDefaults.itemShape(index, PlateType.entries.size)
+                ) {
+                    Text(
+                        when (plate) {
+                            PlateType.TEXTURED_PEI -> "Textured"
+                            PlateType.SMOOTH_PEI -> "Smooth"
+                            PlateType.COOL_PLATE -> "Cool"
+                            PlateType.ENGINEERING_PLATE -> "Eng."
+                        },
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
     }
