@@ -1,6 +1,7 @@
 package com.u1.slicer.ui
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -20,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.AnimatedVisibility
@@ -222,21 +225,58 @@ fun SettingsScreen(
             }
 
             // ---- MakerWorld Cookies ----
+            val context = LocalContext.current
             val cookiesEnabled by viewModel.makerWorldCookiesEnabled.collectAsState()
             val makerWorldCookies by viewModel.makerWorldCookies.collectAsState()
             var cookieInput by remember { mutableStateOf("") }
             val hasCookies = makerWorldCookies.isNotBlank()
+            var showCookieInfo by remember { mutableStateOf(false) }
+            if (showCookieInfo) {
+                CookieInfoDialog(onDismiss = { showCookieInfo = false })
+            }
+            val cookieFileLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.GetContent()
+            ) { uri: Uri? ->
+                if (uri != null) {
+                    val size = context.contentResolver.openAssetFileDescriptor(uri, "r")
+                        ?.use { it.length } ?: 0L
+                    if (size > 65_536L) {
+                        Toast.makeText(context, "File too large — cookies should be a few KB", Toast.LENGTH_SHORT).show()
+                        return@rememberLauncherForActivityResult
+                    }
+                    val text = context.contentResolver.openInputStream(uri)
+                        ?.bufferedReader()?.readText()?.trim()
+                    if (text == null) {
+                        Toast.makeText(context, "Could not read file", Toast.LENGTH_SHORT).show()
+                    } else if (text.isBlank()) {
+                        Toast.makeText(context, "File was empty", Toast.LENGTH_SHORT).show()
+                    } else {
+                        cookieInput = text
+                    }
+                }
+            }
 
             SettingsSection("MakerWorld") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         "Send cookies with URL downloads",
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
                     )
+                    IconButton(
+                        onClick = { showCookieInfo = true }
+                    ) {
+                        Icon(
+                            Icons.Outlined.Info,
+                            contentDescription = "Cookie instructions",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     Switch(
                         checked = cookiesEnabled,
                         onCheckedChange = { viewModel.saveMakerWorldCookiesEnabled(it) }
@@ -270,13 +310,18 @@ fun SettingsScreen(
                             enabled = cookieInput.isNotBlank(),
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
-                        ) { Text("Save Cookies") }
+                        ) { Text("Save Cookies", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        OutlinedButton(
+                            onClick = { cookieFileLauncher.launch("text/plain") },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text("Import File", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         if (hasCookies) {
                             OutlinedButton(
                                 onClick = { viewModel.saveMakerWorldCookies("") },
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp)
-                            ) { Text("Clear") }
+                            ) { Text("Clear", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         }
                     }
                 }
@@ -353,7 +398,6 @@ fun SettingsScreen(
             }
 
             // ---- Backup & Restore ----
-            val context = LocalContext.current
             var backupStatus by remember { mutableStateOf<String?>(null) }
 
             val exportLauncher = rememberLauncherForActivityResult(
@@ -476,5 +520,73 @@ private fun SettingsTextField(label: String, value: String, onValueChange: (Stri
         modifier = Modifier.fillMaxWidth(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         singleLine = true
+    )
+}
+
+@Composable
+private fun CookieInfoDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Got it") }
+        },
+        title = { Text("How to get your MakerWorld cookies") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    "Get cookies from your browser:",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                val browserSteps = listOf(
+                    "Log in to makerworld.com in your browser",
+                    "Press F12 to open Developer Tools\n(steps shown for Chrome; other browsers are similar)",
+                    "Go to the Network tab",
+                    "Check \"Preserve log\"",
+                    "Navigate to any model page",
+                    "Click the \"Doc\" filter to show page requests only",
+                    "Click the first makerworld.com request",
+                    "In Request Headers, find the Cookie header",
+                    "Right-click the value → Copy value"
+                )
+                browserSteps.forEachIndexed { i, step ->
+                    Text(
+                        "${i + 1}. $step",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Transfer to your phone:",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                val transferSteps = listOf(
+                    "Paste the cookie value into a text file (.txt)",
+                    "Send it to your phone (email, Google Drive, USB, etc.)",
+                    "Tap \"Import from File\" below"
+                )
+                transferSteps.forEachIndexed { i, step ->
+                    Text(
+                        "${i + 1}. $step",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
+                    )
+                }
+                Text(
+                    "Or paste directly if you have a clipboard sync app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "Cookies expire periodically. If downloads stop working, repeat these steps to refresh.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+        }
     )
 }
