@@ -239,13 +239,13 @@ fun SettingsScreen(
             ) { uri: Uri? ->
                 if (uri != null) {
                     val size = context.contentResolver.openAssetFileDescriptor(uri, "r")
-                        ?.use { it.length } ?: 0L
+                        ?.use { it.length } ?: -1L
                     if (size > 65_536L) {
                         Toast.makeText(context, "File too large — cookies should be a few KB", Toast.LENGTH_SHORT).show()
                         return@rememberLauncherForActivityResult
                     }
                     val text = context.contentResolver.openInputStream(uri)
-                        ?.bufferedReader()?.readText()?.trim()
+                        ?.use { it.bufferedReader().readText().trim() }
                     if (text == null) {
                         Toast.makeText(context, "Could not read file", Toast.LENGTH_SHORT).show()
                     } else if (text.isBlank()) {
@@ -315,7 +315,7 @@ fun SettingsScreen(
                             onClick = { cookieFileLauncher.launch("text/plain") },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp)
-                        ) { Text("Import File", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        ) { Text("Import from File", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         if (hasCookies) {
                             OutlinedButton(
                                 onClick = { viewModel.saveMakerWorldCookies("") },
