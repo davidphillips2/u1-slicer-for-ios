@@ -118,8 +118,8 @@ fun PrinterScreen(
                     if (status.isConnected) {
                         IconButton(onClick = { viewModel.toggleLight() }) {
                             Icon(
-                                if (isLightOn == true) Icons.Default.LightMode else Icons.Default.DarkMode,
-                                contentDescription = if (isLightOn == true) "Light On" else "Light Off",
+                                Icons.Default.Lightbulb,
+                                contentDescription = if (isLightOn == true) "Printer light on" else "Printer light off",
                                 tint = if (isLightOn == true) Color(0xFFFFC107) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
                         }

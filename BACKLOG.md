@@ -9,9 +9,10 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - Investigate the Moonraker polling loop in `PrinterRepository`/`MoonrakerClient`: is `print_stats.progress` being parsed and surfaced correctly?
 - Check whether `PrinterStatus.printProgress` is wired to the UI and whether the polling interval is appropriate
 
-### B34: Light/dark mode toggle does nothing (GitHub #7)
-- Reporter: ThorinOkenshield — tapping the theme toggle keeps the app in dark mode
-- Check `SettingsRepository` theme persistence and how the theme is applied at the Activity/Compose root
+### B34: Printer light button icon confused for app theme toggle (GitHub #7) — FIXED
+- The button used `Icons.Default.LightMode` (sun) / `Icons.Default.DarkMode` (moon) — identical to Android's theme-switch icons
+- Fixed: changed to `Icons.Default.Lightbulb` (yellow when on, dimmed when off) — clearly a physical light, not a UI theme toggle
+- There is no app-level light/dark theme switch; the app is dark-only
 
 ### B35: "Upload" button confusingly does not start a print (GitHub #6)
 - Reporter: ThorinOkenshield — expects the Upload button to start printing; the Print button works
