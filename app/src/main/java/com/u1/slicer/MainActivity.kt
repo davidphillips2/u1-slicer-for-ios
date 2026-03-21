@@ -555,6 +555,7 @@ fun PrepareScreen(
             detectedColors = threeMfInfo!!.detectedColors,
             extruderPresets = extruderPresets,
             filaments = filaments,
+            currentMapping = colorMapping,
             onConfirm = { mapping ->
                 viewModel.applyMultiColorAssignments(mapping, extruderPresets, filaments)
             },
@@ -947,6 +948,7 @@ fun PreviewScreen(
                     SliceCompleteSummaryCard(
                         result = s.result,
                         perExtruderFilamentMm = parsedGcode?.perExtruderFilamentMm ?: emptyList(),
+                        wipeTowerFilamentMm = parsedGcode?.wipeTowerFilamentMm ?: 0f,
                         bedTemp = config.bedTemp,
                         extruderColors = extruderColors.filter { it.isNotBlank() }
                     )
@@ -961,7 +963,11 @@ fun PreviewScreen(
                 }
                 else -> {
                     // Empty state — no slice results yet, show empty bed
-                    PreviewEmptyState()
+                    val canSlice = state is SlicerViewModel.SlicerState.ModelLoaded
+                    PreviewEmptyState(
+                        modelLoaded = canSlice,
+                        onSliceNow = if (canSlice) {{ viewModel.startSlicing() }} else null
+                    )
                 }
             }
             }
@@ -985,7 +991,10 @@ fun PreviewScreen(
 // Preview Empty State — empty build plate
 // =============================================================================
 @Composable
-fun PreviewEmptyState() {
+fun PreviewEmptyState(
+    modelLoaded: Boolean = false,
+    onSliceNow: (() -> Unit)? = null
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1029,11 +1038,21 @@ fun PreviewEmptyState() {
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
             )
-            Text(
-                "Load a model and slice it to see the preview",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-            )
+            if (modelLoaded && onSliceNow != null) {
+                Spacer(Modifier.height(4.dp))
+                Button(onClick = onSliceNow) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Slice Now")
+                }
+            } else {
+                Text(
+                    "Load a model and slice it to see the preview",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
         }
     }
 }
@@ -1073,13 +1092,13 @@ fun ModelInfoCard(info: ModelInfo) {
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
+fun InfoRow(label: String, value: String, valueColor: Color = Color.Unspecified) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-        Text(value, fontWeight = FontWeight.Medium)
+        Text(value, fontWeight = FontWeight.Medium, color = valueColor)
     }
 }
 
@@ -1138,7 +1157,8 @@ fun ConfigCard(
                     if (onOverridesChange != null) {
                         com.u1.slicer.ui.SlicingOverridesAccordion(
                             overrides = slicingOverrides,
-                            onOverridesChange = onOverridesChange
+                            onOverridesChange = onOverridesChange,
+                            defaultExpandedSection = "layer"
                         )
                     }
 
@@ -1387,6 +1407,7 @@ fun SliceCompleteActionBar(
 fun SliceCompleteSummaryCard(
     result: SliceResult,
     perExtruderFilamentMm: List<Float> = emptyList(),
+    wipeTowerFilamentMm: Float = 0f,
     bedTemp: Int = 0,
     extruderColors: List<String> = emptyList()
 ) {
@@ -1467,6 +1488,14 @@ fun SliceCompleteSummaryCard(
                         }
                     }
                 }
+            }
+            if (wipeTowerFilamentMm > 0.5f) {
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                InfoRow(
+                    "Prime Tower Waste",
+                    "%.0f mm (%.1f g)".format(wipeTowerFilamentMm, wipeTowerFilamentMm * 0.00125f * 1.24f),
+                    valueColor = Color(0xFFFFB74D)
+                )
             }
         }
     }

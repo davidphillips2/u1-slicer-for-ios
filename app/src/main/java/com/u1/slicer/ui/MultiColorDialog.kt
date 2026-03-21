@@ -92,14 +92,22 @@ fun MultiColorDialog(
     detectedColors: List<String>,
     extruderPresets: List<ExtruderPreset>,
     filaments: List<FilamentProfile>,
+    currentMapping: List<Int>? = null,
     onConfirm: (List<Int>) -> Unit,   // extruderIndex for each detectedColor
     onDismiss: () -> Unit
 ) {
-    // Auto-map: for each model color, find the closest extruder slot by color distance
-    val initialMapping = remember(detectedColors, extruderPresets) {
-        detectedColors.map { modelColor ->
-            val closest = findClosestExtruder(modelColor, extruderPresets)
-            closest?.index ?: 0
+    // Seed from the ViewModel's active mapping if available and size matches — this ensures
+    // the dialog shows exactly what is currently slicing (post-ensureMultiSlotMapping) rather
+    // than recomputing from raw findClosestExtruder, which can collapse distinct model colors
+    // onto the same slot and silently drop an extruder when the user confirms.
+    val initialMapping = remember(detectedColors, extruderPresets, currentMapping) {
+        if (currentMapping != null && currentMapping.size == detectedColors.size) {
+            currentMapping
+        } else {
+            detectedColors.map { modelColor ->
+                val closest = findClosestExtruder(modelColor, extruderPresets)
+                closest?.index ?: 0
+            }
         }
     }
 

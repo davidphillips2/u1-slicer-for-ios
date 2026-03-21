@@ -41,6 +41,12 @@ class PrinterRepository(
         return client.testConnection()
     }
 
+    /** Returns true if the paxx12 extended-firmware remote screen endpoint is reachable. */
+    suspend fun probeRemoteScreen(): Boolean = client.probeRemoteScreen()
+
+    /** Returns the URL for the paxx12 extended-firmware remote screen, or null if unavailable. */
+    fun remoteScreenUrl(): String? = client.remoteScreenUrl()
+
     fun startPolling(scope: CoroutineScope) {
         stopPolling()
         pollingJob = scope.launch(Dispatchers.IO) {

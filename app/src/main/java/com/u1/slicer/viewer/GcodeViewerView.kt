@@ -36,6 +36,11 @@ class GcodeViewerView(context: Context) : BaseGLViewerView(context) {
         requestRender()
     }
 
+    fun setFeatureColorMode(enabled: Boolean) {
+        renderer.pendingColorMode = enabled
+        requestRender()
+    }
+
     fun setOnContentReady(listener: (() -> Unit)?) {
         renderer.onContentReady = listener
     }

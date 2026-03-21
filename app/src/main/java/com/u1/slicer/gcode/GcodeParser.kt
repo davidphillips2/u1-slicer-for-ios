@@ -18,6 +18,9 @@ object GcodeParser {
         var lastE = 0f
         var absoluteE = true
         var perExtruderMm = emptyList<Float>()
+        var currentFeatureType: Byte = FeatureType.OTHER
+        var wipeTowerE = 0f      // total E extruded in prime/wipe tower regions
+        var wipeTowerEStart = Float.NaN  // E value at entry to prime tower region
 
         BufferedReader(FileReader(file)).use { reader ->
             var line: String?
@@ -43,6 +46,38 @@ object GcodeParser {
                         if (eqIdx >= 0) {
                             val valStr = l.substring(eqIdx + 1).trim()
                             perExtruderMm = valStr.split(',').mapNotNull { it.trim().toFloatOrNull() }
+                        }
+                    }
+                    // ;TYPE: feature type annotations from OrcaSlicer
+                    if (startsWithAt(l, start, ";TYPE:")) {
+                        val typeName = l.substring(start + 6).trim()
+                        val prevFeature = currentFeatureType
+                        currentFeatureType = when {
+                            typeName.startsWith("Outer wall")            -> FeatureType.OUTER_WALL
+                            typeName.startsWith("Inner wall")            -> FeatureType.INNER_WALL
+                            typeName.startsWith("Sparse infill")         -> FeatureType.SPARSE_INFILL
+                            typeName.startsWith("Internal solid infill") -> FeatureType.SOLID_INFILL
+                            typeName.startsWith("Solid infill")          -> FeatureType.SOLID_INFILL
+                            typeName.startsWith("Top surface")           -> FeatureType.TOP_SURFACE
+                            typeName.startsWith("Bottom surface")        -> FeatureType.BOTTOM_SURFACE
+                            typeName.startsWith("Support interface")     -> FeatureType.SUPPORT_INTERFACE
+                            typeName.startsWith("Support")               -> FeatureType.SUPPORT
+                            typeName.startsWith("Prime tower")           -> FeatureType.PRIME_TOWER
+                            typeName.startsWith("Wipe tower")            -> FeatureType.PRIME_TOWER
+                            typeName.startsWith("Bridge")                -> FeatureType.BRIDGE
+                            typeName.startsWith("Skirt")                 -> FeatureType.SKIRT
+                            typeName.startsWith("Brim")                  -> FeatureType.SKIRT
+                            typeName.startsWith("Gap infill")            -> FeatureType.SPARSE_INFILL
+                            else                                         -> FeatureType.OTHER
+                        }
+                        // Track wipe tower E boundaries for waste estimation
+                        if (currentFeatureType == FeatureType.PRIME_TOWER && prevFeature != FeatureType.PRIME_TOWER) {
+                            wipeTowerEStart = lastE
+                        } else if (prevFeature == FeatureType.PRIME_TOWER && currentFeatureType != FeatureType.PRIME_TOWER) {
+                            if (!wipeTowerEStart.isNaN() && absoluteE) {
+                                wipeTowerE += (lastE - wipeTowerEStart).coerceAtLeast(0f)
+                            }
+                            wipeTowerEStart = Float.NaN
                         }
                     }
                     continue
@@ -97,7 +132,9 @@ object GcodeParser {
                         if (newX != x || newY != y) {
                             currentMoves.add(GcodeMove(
                                 type = if (isExtrude) MoveType.EXTRUDE else MoveType.TRAVEL,
-                                x0 = x, y0 = y, x1 = newX, y1 = newY, extruder = currentExtruder
+                                x0 = x, y0 = y, x1 = newX, y1 = newY,
+                                extruder = currentExtruder,
+                                featureType = currentFeatureType
                             ))
                         }
                         x = newX; y = newY
@@ -135,11 +172,20 @@ object GcodeParser {
             }
         }
 
+        // Close any open wipe tower region at EOF
+        if (currentFeatureType == FeatureType.PRIME_TOWER && !wipeTowerEStart.isNaN() && absoluteE) {
+            wipeTowerE += (lastE - wipeTowerEStart).coerceAtLeast(0f)
+        }
+
         if (currentMoves.isNotEmpty()) {
             layers.add(GcodeLayer(layerIndex, currentZ, currentMoves.toList()))
         }
 
-        return ParsedGcode(layers = layers, perExtruderFilamentMm = perExtruderMm)
+        return ParsedGcode(
+            layers = layers,
+            perExtruderFilamentMm = perExtruderMm,
+            wipeTowerFilamentMm = wipeTowerE
+        )
     }
 
     private fun startsWithAt(s: String, offset: Int, prefix: String): Boolean {

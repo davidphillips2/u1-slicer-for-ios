@@ -33,9 +33,10 @@ import com.u1.slicer.data.SlicingOverrides
 @Composable
 fun SlicingOverridesAccordion(
     overrides: SlicingOverrides,
-    onOverridesChange: (SlicingOverrides) -> Unit
+    onOverridesChange: (SlicingOverrides) -> Unit,
+    defaultExpandedSection: String? = null
 ) {
-    var expandedSection by remember { mutableStateOf<String?>(null) }
+    var expandedSection by remember { mutableStateOf<String?>(defaultExpandedSection) }
 
     ExpandableOverrideSection(
         title = "Layer & Infill",
@@ -90,11 +91,90 @@ fun SlicingOverridesAccordion(
             defaultHint = "gyroid",
             onModeChange = { mode -> onOverridesChange(overrides.copy(infillPattern = overrides.infillPattern.copy(mode = mode))) },
             valueContent = {
-                val patterns = listOf("gyroid", "grid", "lines", "honeycomb", "cubic", "triangles", "rectilinear")
+                val patterns = listOf("gyroid", "grid", "lines", "honeycomb", "cubic", "triangles", "rectilinear", "adaptive_cubic", "lightning")
                 OverrideDropdown(
                     value = overrides.infillPattern.value ?: "gyroid",
                     options = patterns,
                     onValueChange = { onOverridesChange(overrides.copy(infillPattern = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                )
+            }
+        )
+
+        OverrideRow(
+            label = "Infill Speed",
+            override = overrides.sparseInfillSpeed,
+            defaultHint = "auto",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(sparseInfillSpeed = overrides.sparseInfillSpeed.copy(mode = mode))) },
+            valueContent = {
+                OverrideIntField(
+                    value = overrides.sparseInfillSpeed.value ?: 0,
+                    suffix = "mm/s",
+                    onValueChange = { onOverridesChange(overrides.copy(sparseInfillSpeed = OverrideValue(OverrideMode.OVERRIDE, it.coerceAtLeast(0)))) }
+                )
+            }
+        )
+
+        OverrideRow(
+            label = "Top Shell Layers",
+            override = overrides.topShellLayers,
+            defaultHint = "5",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(topShellLayers = overrides.topShellLayers.copy(mode = mode))) },
+            valueContent = {
+                OverrideIntField(
+                    value = overrides.topShellLayers.value ?: 5,
+                    onValueChange = { onOverridesChange(overrides.copy(topShellLayers = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0, 20)))) }
+                )
+            }
+        )
+
+        OverrideRow(
+            label = "Bottom Shell Layers",
+            override = overrides.bottomShellLayers,
+            defaultHint = "4",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(bottomShellLayers = overrides.bottomShellLayers.copy(mode = mode))) },
+            valueContent = {
+                OverrideIntField(
+                    value = overrides.bottomShellLayers.value ?: 4,
+                    onValueChange = { onOverridesChange(overrides.copy(bottomShellLayers = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0, 20)))) }
+                )
+            }
+        )
+
+        val surfacePatterns = listOf(
+            "monotonic" to "Monotonic",
+            "monotonicaline" to "Monotonic Line",
+            "alignedrectilinear" to "Aligned Rectilinear",
+            "concentric" to "Concentric",
+            "hilbertcurve" to "Hilbert Curve",
+            "archimedeanChords" to "Archimedean Chords",
+            "octagramspiral" to "Octagram Spiral"
+        )
+        OverrideRow(
+            label = "Top Surface Pattern",
+            override = overrides.topSurfacePattern,
+            defaultHint = "Monotonic",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(topSurfacePattern = overrides.topSurfacePattern.copy(mode = mode))) },
+            valueContent = {
+                OverrideDropdown(
+                    value = overrides.topSurfacePattern.value ?: "monotonic",
+                    options = surfacePatterns.map { it.first },
+                    labels = surfacePatterns.map { it.second },
+                    onValueChange = { onOverridesChange(overrides.copy(topSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                )
+            }
+        )
+
+        OverrideRow(
+            label = "Bottom Surface Pattern",
+            override = overrides.bottomSurfacePattern,
+            defaultHint = "Monotonic",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(bottomSurfacePattern = overrides.bottomSurfacePattern.copy(mode = mode))) },
+            valueContent = {
+                OverrideDropdown(
+                    value = overrides.bottomSurfacePattern.value ?: "monotonic",
+                    options = surfacePatterns.map { it.first },
+                    labels = surfacePatterns.map { it.second },
+                    onValueChange = { onOverridesChange(overrides.copy(bottomSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, it))) }
                 )
             }
         )
@@ -249,6 +329,111 @@ fun SlicingOverridesAccordion(
                     )
                 }
             )
+
+            OverrideRow(
+                label = "  XY Distance",
+                override = overrides.supportXyDistance,
+                defaultHint = "0.35 mm",
+                onModeChange = { mode -> onOverridesChange(overrides.copy(supportXyDistance = overrides.supportXyDistance.copy(mode = mode))) },
+                valueContent = {
+                    OverrideFloatField(
+                        value = overrides.supportXyDistance.value ?: 0.35f,
+                        suffix = "mm",
+                        onValueChange = { onOverridesChange(overrides.copy(supportXyDistance = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0f, 5f)))) }
+                    )
+                }
+            )
+
+            OverrideRow(
+                label = "  Interface Pattern",
+                override = overrides.supportInterfacePattern,
+                defaultHint = "Auto",
+                onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfacePattern = overrides.supportInterfacePattern.copy(mode = mode))) },
+                valueContent = {
+                    val patterns = listOf("auto" to "Auto", "rectilinear" to "Rectilinear",
+                        "concentric" to "Concentric", "rectilinear_grid" to "Rectilinear Grid")
+                    OverrideDropdown(
+                        value = overrides.supportInterfacePattern.value ?: "auto",
+                        options = patterns.map { it.first },
+                        labels = patterns.map { it.second },
+                        onValueChange = { onOverridesChange(overrides.copy(supportInterfacePattern = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                    )
+                }
+            )
+
+            OverrideRow(
+                label = "  Interface Spacing",
+                override = overrides.supportInterfaceSpacing,
+                defaultHint = "0.5 mm",
+                onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfaceSpacing = overrides.supportInterfaceSpacing.copy(mode = mode))) },
+                valueContent = {
+                    OverrideFloatField(
+                        value = overrides.supportInterfaceSpacing.value ?: 0.5f,
+                        suffix = "mm",
+                        onValueChange = { onOverridesChange(overrides.copy(supportInterfaceSpacing = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0f, 5f)))) }
+                    )
+                }
+            )
+
+            OverrideRow(
+                label = "  Support Speed",
+                override = overrides.supportSpeed,
+                defaultHint = "auto",
+                onModeChange = { mode -> onOverridesChange(overrides.copy(supportSpeed = overrides.supportSpeed.copy(mode = mode))) },
+                valueContent = {
+                    OverrideIntField(
+                        value = overrides.supportSpeed.value ?: 0,
+                        suffix = "mm/s",
+                        onValueChange = { onOverridesChange(overrides.copy(supportSpeed = OverrideValue(OverrideMode.OVERRIDE, it.coerceAtLeast(0)))) }
+                    )
+                }
+            )
+
+            // Tree support parameters — only shown when tree support type is selected
+            val isTree = (overrides.supportType.value ?: "normal(auto)").startsWith("tree")
+            if (isTree) {
+                OverrideRow(
+                    label = "  Branch Angle",
+                    override = overrides.treeSupportBranchAngle,
+                    defaultHint = "40\u00B0",
+                    onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchAngle = overrides.treeSupportBranchAngle.copy(mode = mode))) },
+                    valueContent = {
+                        OverrideIntField(
+                            value = overrides.treeSupportBranchAngle.value ?: 40,
+                            suffix = "\u00B0",
+                            onValueChange = { onOverridesChange(overrides.copy(treeSupportBranchAngle = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0, 60)))) }
+                        )
+                    }
+                )
+
+                OverrideRow(
+                    label = "  Branch Distance",
+                    override = overrides.treeSupportBranchDistance,
+                    defaultHint = "5.0 mm",
+                    onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchDistance = overrides.treeSupportBranchDistance.copy(mode = mode))) },
+                    valueContent = {
+                        OverrideFloatField(
+                            value = overrides.treeSupportBranchDistance.value ?: 5.0f,
+                            suffix = "mm",
+                            onValueChange = { onOverridesChange(overrides.copy(treeSupportBranchDistance = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0.5f, 20f)))) }
+                        )
+                    }
+                )
+
+                OverrideRow(
+                    label = "  Branch Diameter",
+                    override = overrides.treeSupportBranchDiameter,
+                    defaultHint = "5.0 mm",
+                    onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchDiameter = overrides.treeSupportBranchDiameter.copy(mode = mode))) },
+                    valueContent = {
+                        OverrideFloatField(
+                            value = overrides.treeSupportBranchDiameter.value ?: 5.0f,
+                            suffix = "mm",
+                            onValueChange = { onOverridesChange(overrides.copy(treeSupportBranchDiameter = OverrideValue(OverrideMode.OVERRIDE, it.coerceIn(0.5f, 20f)))) }
+                        )
+                    }
+                )
+            }
         }
     }
 

@@ -2046,6 +2046,11 @@ internal fun buildProfileOverridesImpl(
     val infillDensity = resolve(ov.infillDensity, cfg.fillDensity, "infillDensity")
     val wallCount = resolve(ov.wallCount, cfg.perimeters, "wallCount")
     val infillPattern = resolve(ov.infillPattern, cfg.fillPattern, "infillPattern")
+    val topShellLayers = resolve(ov.topShellLayers, cfg.topSolidLayers, "topShellLayers")
+    val bottomShellLayers = resolve(ov.bottomShellLayers, cfg.bottomSolidLayers, "bottomShellLayers")
+    val topSurfacePattern = resolve(ov.topSurfacePattern, "monotonic", "topSurfacePattern")
+    val bottomSurfacePattern = resolve(ov.bottomSurfacePattern, "monotonic", "bottomSurfacePattern")
+    val sparseInfillSpeed = resolve(ov.sparseInfillSpeed, 0, "sparseInfillSpeed")
     val supportEnabled = resolve(ov.supports, cfg.supportEnabled, "supports")
     val supportType = resolve(ov.supportType, cfg.supportType, "supportType")
     val supportAngle = resolve(ov.supportAngle, cfg.supportAngle.toInt(), "supportAngle")
@@ -2056,6 +2061,13 @@ internal fun buildProfileOverridesImpl(
     val supportInterfaceBottomLayers = resolve(ov.supportInterfaceBottomLayers, 0, "supportInterfaceBottomLayers")
     val supportFilament = resolve(ov.supportFilament, 0, "supportFilament")
     val supportInterfaceFilament = resolve(ov.supportInterfaceFilament, 0, "supportInterfaceFilament")
+    val supportXyDistance = resolve(ov.supportXyDistance, 0.35f, "supportXyDistance")
+    val supportInterfacePattern = resolve(ov.supportInterfacePattern, "auto", "supportInterfacePattern")
+    val supportInterfaceSpacing = resolve(ov.supportInterfaceSpacing, 0.5f, "supportInterfaceSpacing")
+    val supportSpeed = resolve(ov.supportSpeed, 0, "supportSpeed")
+    val treeSupportBranchAngle = resolve(ov.treeSupportBranchAngle, 40, "treeSupportBranchAngle")
+    val treeSupportBranchDistance = resolve(ov.treeSupportBranchDistance, 5.0f, "treeSupportBranchDistance")
+    val treeSupportBranchDiameter = resolve(ov.treeSupportBranchDiameter, 5.0f, "treeSupportBranchDiameter")
     val brimWidth = resolve(ov.brimWidth, cfg.brimWidth, "brimWidth")
     val skirtLoops = resolve(ov.skirtLoops, cfg.skirtLoops, "skirtLoops")
     val bedTemp = resolve(ov.bedTemp, cfg.bedTemp, "bedTemp")
@@ -2070,8 +2082,10 @@ internal fun buildProfileOverridesImpl(
         "layer_height" to layerHeight.toString(),
         "initial_layer_print_height" to cfg.firstLayerHeight.toString(),
         "wall_loops" to wallCount.toString(),
-        "top_shell_layers" to cfg.topSolidLayers.toString(),
-        "bottom_shell_layers" to cfg.bottomSolidLayers.toString(),
+        "top_shell_layers" to topShellLayers.toString(),
+        "bottom_shell_layers" to bottomShellLayers.toString(),
+        "top_surface_pattern" to topSurfacePattern,
+        "bottom_surface_pattern" to bottomSurfacePattern,
         "sparse_infill_density" to "${(infillDensity * 100).toInt()}%",
         "sparse_infill_pattern" to infillPattern,
         "travel_speed" to cfg.travelSpeed.toString(),
@@ -2097,6 +2111,12 @@ internal fun buildProfileOverridesImpl(
         "prime_tower_brim_chamfer_max_width" to primeTowerChamferMaxWidth.toString()
     )
 
+    // sparse_infill_speed: 0 means "auto" — only emit when the user has overridden to a
+    // positive value; otherwise let applyConfigToPrusa / embedded profile decide.
+    if (sparseInfillSpeed > 0) {
+        result["sparse_infill_speed"] = sparseInfillSpeed.toString()
+    }
+
     // Support keys: when mode is USE_FILE and the file has its own config (Bambu 3MF),
     // omit these keys so the file's original enable_support / support_threshold_angle
     // survive through ProfileEmbedder's preserve path. Without this, cfg.supportEnabled
@@ -2112,11 +2132,25 @@ internal fun buildProfileOverridesImpl(
         result["support_base_pattern_spacing"] = supportPatternSpacing.toString()
         result["support_interface_top_layers"] = supportInterfaceTopLayers.toString()
         result["support_interface_bottom_layers"] = supportInterfaceBottomLayers.toString()
+        result["support_object_xy_distance"] = supportXyDistance.toString()
+        result["support_interface_pattern"] = supportInterfacePattern
+        result["support_interface_spacing"] = supportInterfaceSpacing.toString()
+        // support_speed 0 = auto; only emit positive values
+        if (supportSpeed > 0) {
+            result["support_speed"] = supportSpeed.toString()
+        }
         if (supportFilament > 0) {
             result["support_filament"] = supportFilament.toString()
         }
         if (supportInterfaceFilament > 0) {
             result["support_interface_filament"] = supportInterfaceFilament.toString()
+        }
+        // Tree support parameters — only relevant when support type is tree
+        val isTree = supportType.startsWith("tree")
+        if (isTree) {
+            result["tree_support_branch_angle"] = treeSupportBranchAngle.toString()
+            result["tree_support_branch_distance"] = treeSupportBranchDistance.toString()
+            result["tree_support_branch_diameter"] = treeSupportBranchDiameter.toString()
         }
     }
 

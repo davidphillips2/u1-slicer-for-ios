@@ -142,6 +142,37 @@ class MoonrakerClient {
     }
 
     /**
+     * Returns the URL to the paxx12 extended-firmware remote screen endpoint, or null if
+     * the host cannot be determined from [baseUrl].
+     * The screen is served by nginx on port 80 (not Moonraker's 7125).
+     */
+    fun remoteScreenUrl(): String? {
+        if (baseUrl.isBlank()) return null
+        return try {
+            val uri = java.net.URI(baseUrl)
+            "${uri.scheme}://${uri.host}/screen/"
+        } catch (_: Exception) { null }
+    }
+
+    /**
+     * Probes `http://<host>/screen/` (paxx12 extended firmware).
+     * @return true if the endpoint responds with HTTP 2xx, false otherwise.
+     */
+    suspend fun probeRemoteScreen(): Boolean = withContext(Dispatchers.IO) {
+        val screenUrl = remoteScreenUrl() ?: return@withContext false
+        try {
+            val shortClient = OkHttpClient.Builder()
+                .connectTimeout(3, TimeUnit.SECONDS)
+                .readTimeout(3, TimeUnit.SECONDS)
+                .build()
+            val response = shortClient.newCall(Request.Builder().url(screenUrl).head().build()).execute()
+            val ok = response.isSuccessful
+            response.close()
+            ok
+        } catch (_: Exception) { false }
+    }
+
+    /**
      * Get printer status: temps, state, progress.
      */
     suspend fun getStatus(): PrinterStatus = withContext(Dispatchers.IO) {

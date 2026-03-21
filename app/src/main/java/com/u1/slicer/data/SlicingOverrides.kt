@@ -26,6 +26,12 @@ data class SlicingOverrides(
     val infillDensity: OverrideValue<Float> = OverrideValue(),
     val wallCount: OverrideValue<Int> = OverrideValue(),
     val infillPattern: OverrideValue<String> = OverrideValue(),
+    // Shell / surface (F31)
+    val topShellLayers: OverrideValue<Int> = OverrideValue(),
+    val bottomShellLayers: OverrideValue<Int> = OverrideValue(),
+    val topSurfacePattern: OverrideValue<String> = OverrideValue(),
+    val bottomSurfacePattern: OverrideValue<String> = OverrideValue(),
+    val sparseInfillSpeed: OverrideValue<Int> = OverrideValue(),
     val supports: OverrideValue<Boolean> = OverrideValue(),
     val supportType: OverrideValue<String> = OverrideValue(),
     val supportAngle: OverrideValue<Int> = OverrideValue(),
@@ -36,6 +42,15 @@ data class SlicingOverrides(
     val supportInterfaceBottomLayers: OverrideValue<Int> = OverrideValue(),
     val supportFilament: OverrideValue<Int> = OverrideValue(),
     val supportInterfaceFilament: OverrideValue<Int> = OverrideValue(),
+    // Extended support settings (F30)
+    val supportXyDistance: OverrideValue<Float> = OverrideValue(),
+    val supportInterfacePattern: OverrideValue<String> = OverrideValue(),
+    val supportInterfaceSpacing: OverrideValue<Float> = OverrideValue(),
+    val supportSpeed: OverrideValue<Int> = OverrideValue(),
+    // Tree support parameters (shown only when support type is tree)
+    val treeSupportBranchAngle: OverrideValue<Int> = OverrideValue(),
+    val treeSupportBranchDistance: OverrideValue<Float> = OverrideValue(),
+    val treeSupportBranchDiameter: OverrideValue<Float> = OverrideValue(),
     val brimWidth: OverrideValue<Float> = OverrideValue(),
     val skirtLoops: OverrideValue<Int> = OverrideValue(),
     val bedTemp: OverrideValue<Int> = OverrideValue(),
@@ -85,14 +100,16 @@ data class SlicingOverrides(
             }
 
         return base.copy(
-            layerHeight      = res(layerHeight,   base.layerHeight,      "layerHeight"),
-            fillDensity      = res(infillDensity, base.fillDensity,      "infillDensity"),
-            perimeters       = res(wallCount,     base.perimeters,       "wallCount"),
-            fillPattern      = res(infillPattern, base.fillPattern,      "infillPattern"),
-            supportEnabled   = res(supports,      base.supportEnabled,   "supports"),
-            brimWidth        = res(brimWidth,      base.brimWidth,        "brimWidth"),
-            skirtLoops       = res(skirtLoops,    base.skirtLoops,       "skirtLoops"),
-            bedTemp          = res(bedTemp,       base.bedTemp,          "bedTemp"),
+            layerHeight      = res(layerHeight,       base.layerHeight,       "layerHeight"),
+            fillDensity      = res(infillDensity,     base.fillDensity,       "infillDensity"),
+            perimeters       = res(wallCount,         base.perimeters,        "wallCount"),
+            fillPattern      = res(infillPattern,     base.fillPattern,       "infillPattern"),
+            topSolidLayers   = res(topShellLayers,    base.topSolidLayers,    "topShellLayers"),
+            bottomSolidLayers= res(bottomShellLayers, base.bottomSolidLayers, "bottomShellLayers"),
+            supportEnabled   = res(supports,          base.supportEnabled,    "supports"),
+            brimWidth        = res(brimWidth,          base.brimWidth,         "brimWidth"),
+            skirtLoops       = res(skirtLoops,        base.skirtLoops,        "skirtLoops"),
+            bedTemp          = res(bedTemp,           base.bedTemp,           "bedTemp"),
             // Multi-extruder slicing requires a wipe tower to produce T1 tool changes.
             // Only bypass if the user has explicitly set OVERRIDE mode to false.
             wipeTowerEnabled = if (base.extruderCount > 1 && primeTower.mode != OverrideMode.OVERRIDE)
@@ -114,6 +131,11 @@ data class SlicingOverrides(
         putOverride("infillDensity", infillDensity)
         putOverride("wallCount", wallCount)
         putOverride("infillPattern", infillPattern)
+        putOverride("topShellLayers", topShellLayers)
+        putOverride("bottomShellLayers", bottomShellLayers)
+        putOverride("topSurfacePattern", topSurfacePattern)
+        putOverride("bottomSurfacePattern", bottomSurfacePattern)
+        putOverride("sparseInfillSpeed", sparseInfillSpeed)
         putOverride("supports", supports)
         putOverride("supportType", supportType)
         putOverride("supportAngle", supportAngle)
@@ -124,6 +146,13 @@ data class SlicingOverrides(
         putOverride("supportInterfaceBottomLayers", supportInterfaceBottomLayers)
         putOverride("supportFilament", supportFilament)
         putOverride("supportInterfaceFilament", supportInterfaceFilament)
+        putOverride("supportXyDistance", supportXyDistance)
+        putOverride("supportInterfacePattern", supportInterfacePattern)
+        putOverride("supportInterfaceSpacing", supportInterfaceSpacing)
+        putOverride("supportSpeed", supportSpeed)
+        putOverride("treeSupportBranchAngle", treeSupportBranchAngle)
+        putOverride("treeSupportBranchDistance", treeSupportBranchDistance)
+        putOverride("treeSupportBranchDiameter", treeSupportBranchDiameter)
         putOverride("brimWidth", brimWidth)
         putOverride("skirtLoops", skirtLoops)
         putOverride("bedTemp", bedTemp)
@@ -143,6 +172,11 @@ data class SlicingOverrides(
             "infillDensity" to 0.15f,
             "wallCount" to 2,
             "infillPattern" to "gyroid",
+            "topShellLayers" to 5,
+            "bottomShellLayers" to 4,
+            "topSurfacePattern" to "monotonic",
+            "bottomSurfacePattern" to "monotonic",
+            "sparseInfillSpeed" to 0,
             "supports" to false,
             "supportType" to "normal(auto)",
             "supportAngle" to 30,
@@ -153,6 +187,13 @@ data class SlicingOverrides(
             "supportInterfaceBottomLayers" to 0,
             "supportFilament" to 0,
             "supportInterfaceFilament" to 0,
+            "supportXyDistance" to 0.35f,
+            "supportInterfacePattern" to "auto",
+            "supportInterfaceSpacing" to 0.5f,
+            "supportSpeed" to 0,
+            "treeSupportBranchAngle" to 40,
+            "treeSupportBranchDistance" to 5.0f,
+            "treeSupportBranchDiameter" to 5.0f,
             "brimWidth" to 0f,
             "skirtLoops" to 0,
             "bedTemp" to 60,
@@ -179,6 +220,11 @@ data class SlicingOverrides(
                     infillDensity = parseOverride("infillDensity") { (it as Number).toFloat() },
                     wallCount = parseOverride("wallCount") { (it as Number).toInt() },
                     infillPattern = parseOverride("infillPattern") { it.toString() },
+                    topShellLayers = parseOverride("topShellLayers") { (it as Number).toInt() },
+                    bottomShellLayers = parseOverride("bottomShellLayers") { (it as Number).toInt() },
+                    topSurfacePattern = parseOverride("topSurfacePattern") { it.toString() },
+                    bottomSurfacePattern = parseOverride("bottomSurfacePattern") { it.toString() },
+                    sparseInfillSpeed = parseOverride("sparseInfillSpeed") { (it as Number).toInt() },
                     supports = parseOverride("supports") { it as Boolean },
                     supportType = parseOverride("supportType") { it.toString() },
                     supportAngle = parseOverride("supportAngle") { (it as Number).toInt() },
@@ -189,6 +235,13 @@ data class SlicingOverrides(
                     supportInterfaceBottomLayers = parseOverride("supportInterfaceBottomLayers") { (it as Number).toInt() },
                     supportFilament = parseOverride("supportFilament") { (it as Number).toInt() },
                     supportInterfaceFilament = parseOverride("supportInterfaceFilament") { (it as Number).toInt() },
+                    supportXyDistance = parseOverride("supportXyDistance") { (it as Number).toFloat() },
+                    supportInterfacePattern = parseOverride("supportInterfacePattern") { it.toString() },
+                    supportInterfaceSpacing = parseOverride("supportInterfaceSpacing") { (it as Number).toFloat() },
+                    supportSpeed = parseOverride("supportSpeed") { (it as Number).toInt() },
+                    treeSupportBranchAngle = parseOverride("treeSupportBranchAngle") { (it as Number).toInt() },
+                    treeSupportBranchDistance = parseOverride("treeSupportBranchDistance") { (it as Number).toFloat() },
+                    treeSupportBranchDiameter = parseOverride("treeSupportBranchDiameter") { (it as Number).toFloat() },
                     brimWidth = parseOverride("brimWidth") { (it as Number).toFloat() },
                     skirtLoops = parseOverride("skirtLoops") { (it as Number).toInt() },
                     bedTemp = parseOverride("bedTemp") { (it as Number).toInt() },

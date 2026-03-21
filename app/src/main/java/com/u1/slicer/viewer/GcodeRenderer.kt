@@ -5,6 +5,7 @@ import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
+import com.u1.slicer.gcode.FeatureType
 import com.u1.slicer.gcode.MoveType
 import com.u1.slicer.gcode.ParsedGcode
 import java.nio.ByteBuffer
@@ -75,6 +76,27 @@ class GcodeRenderer(private val context: Context) : GLSurfaceView.Renderer {
     )
     private val travelColor = floatArrayOf(0.3f, 0.3f, 0.3f, 0.4f)
 
+    // Feature-type color palette — indexed by FeatureType constants (0–11)
+    private val featureTypeColors = arrayOf(
+        floatArrayOf(1.00f, 0.85f, 0.00f, 1.0f),  // OUTER_WALL:       yellow
+        floatArrayOf(0.53f, 0.81f, 0.92f, 1.0f),  // INNER_WALL:       sky blue
+        floatArrayOf(0.30f, 0.71f, 0.68f, 1.0f),  // SPARSE_INFILL:    teal
+        floatArrayOf(0.40f, 0.73f, 0.42f, 1.0f),  // SOLID_INFILL:     green
+        floatArrayOf(0.00f, 0.74f, 0.83f, 1.0f),  // TOP_SURFACE:      cyan
+        floatArrayOf(0.00f, 0.59f, 0.53f, 1.0f),  // BOTTOM_SURFACE:   dark teal
+        floatArrayOf(0.67f, 0.28f, 0.74f, 1.0f),  // SUPPORT:          purple
+        floatArrayOf(0.81f, 0.58f, 0.85f, 1.0f),  // SUPPORT_INTERFACE:light purple
+        floatArrayOf(1.00f, 0.25f, 0.51f, 1.0f),  // PRIME_TOWER:      hot pink
+        floatArrayOf(1.00f, 0.44f, 0.26f, 1.0f),  // BRIDGE:           orange-red
+        floatArrayOf(0.69f, 0.75f, 0.76f, 1.0f),  // SKIRT:            light gray
+        floatArrayOf(0.62f, 0.62f, 0.62f, 1.0f)   // OTHER:            gray
+    )
+
+    /** true = color by feature type; false = color by extruder (default) */
+    @Volatile var pendingColorMode: Boolean? = null
+    private var useFeatureColors = false
+    private var lastGcode: ParsedGcode? = null
+
     /** Override extruder colors from the confirmed multi-color assignment.
      *  Empty/blank entries are skipped (unused slots keep their defaults). */
     fun setExtruderColors(hexColors: List<String>) {
@@ -124,6 +146,17 @@ class GcodeRenderer(private val context: Context) : GLSurfaceView.Renderer {
             pendingExtruderColors = null
         }
 
+        pendingColorMode?.let { mode ->
+            pendingColorMode = null
+            if (mode != useFeatureColors) {
+                useFeatureColors = mode
+                lastGcode?.let { gcode ->
+                    preserveCameraOnNextUpload = true
+                    uploadGcode(gcode)
+                }
+            }
+        }
+
         pendingGcode?.let { gcode ->
             uploadGcode(gcode)
             pendingGcode = null
@@ -157,6 +190,7 @@ class GcodeRenderer(private val context: Context) : GLSurfaceView.Renderer {
     }
 
     fun uploadGcode(gcode: ParsedGcode) {
+        lastGcode = gcode
         // Delete previous master VBO/VAO
         if (masterVAO != 0) {
             GLES30.glDeleteVertexArrays(1, intArrayOf(masterVAO), 0)
@@ -237,7 +271,11 @@ class GcodeRenderer(private val context: Context) : GLSurfaceView.Renderer {
 
             for (move in layer.moves) {
                 if (move.type != MoveType.EXTRUDE) continue
-                val baseColor = extruderColors[move.extruder.coerceIn(0, 3)]
+                val baseColor = if (useFeatureColors) {
+                    featureTypeColors[move.featureType.toInt().coerceIn(0, featureTypeColors.size - 1)]
+                } else {
+                    extruderColors[move.extruder.coerceIn(0, 3)]
+                }
                 val color = floatArrayOf(
                     (baseColor[0] * layerBrightness).coerceAtMost(1.0f),
                     (baseColor[1] * layerBrightness).coerceAtMost(1.0f),

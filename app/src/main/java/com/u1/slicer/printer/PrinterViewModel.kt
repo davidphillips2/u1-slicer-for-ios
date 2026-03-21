@@ -50,6 +50,10 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
     private val _isLightOn = MutableStateFlow<Boolean?>(null)
     val isLightOn: StateFlow<Boolean?> = _isLightOn.asStateFlow()
 
+    // paxx12 extended-firmware remote screen availability (probed after connection)
+    private val _remoteScreenAvailable = MutableStateFlow(false)
+    val remoteScreenAvailable: StateFlow<Boolean> = _remoteScreenAvailable.asStateFlow()
+
     sealed class ConnectionState {
         object Unknown : ConnectionState()
         object Testing : ConnectionState()
@@ -60,7 +64,10 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
     sealed class SendingState {
         object Idle : SendingState()
         object Uploading : SendingState()
-        object Success : SendingState()
+        /** Upload + print queued successfully. */
+        object PrintStarted : SendingState()
+        /** Upload-only succeeded (no print queued). */
+        object UploadComplete : SendingState()
         data class Error(val message: String) : SendingState()
     }
 
@@ -106,13 +113,21 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
         _webcamCandidates.value = candidates
     }
 
+    /** Returns the URL for the paxx12 extended-firmware remote screen, or null. */
+    fun remoteScreenUrl(): String? = printerRepo.remoteScreenUrl()
+
     fun testConnection() {
         _connectionState.value = ConnectionState.Testing
         viewModelScope.launch(Dispatchers.IO) {
             val error = printerRepo.testConnection()
             _connectionState.value = if (error == null) ConnectionState.Connected
                                      else ConnectionState.Failed(error)
-            if (error == null) pollLedState()
+            if (error == null) {
+                pollLedState()
+                _remoteScreenAvailable.value = printerRepo.probeRemoteScreen()
+            } else {
+                _remoteScreenAvailable.value = false
+            }
         }
     }
 
@@ -196,7 +211,7 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
             val filename = file.name
             val ok = printerRepo.uploadAndPrint(file, filename)
             _sendingState.value = if (ok) {
-                SendingState.Success
+                SendingState.PrintStarted
             } else {
                 SendingState.Error("Failed to upload or start print")
             }
@@ -212,7 +227,7 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
                 return@launch
             }
             val ok = printerRepo.uploadOnly(file, file.name)
-            _sendingState.value = if (ok) SendingState.Success else SendingState.Error("Upload failed")
+            _sendingState.value = if (ok) SendingState.UploadComplete else SendingState.Error("Upload failed")
         }
     }
 

@@ -31,6 +31,9 @@ import androidx.compose.ui.window.Dialog
 import com.u1.slicer.data.ExtruderPreset
 import com.u1.slicer.data.FilamentProfile
 import com.u1.slicer.printer.PrinterViewModel
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -54,6 +57,8 @@ fun PrinterScreen(
     val syncState by viewModel.syncState.collectAsState()
     val extruderPresets by viewModel.extruderPresets.collectAsState()
     val webcamCandidates by viewModel.webcamCandidates.collectAsState()
+    val remoteScreenAvailable by viewModel.remoteScreenAvailable.collectAsState()
+    val context = LocalContext.current
 
     // Camera feed polling
     var cameraFrame by remember { mutableStateOf<Bitmap?>(null) }
@@ -165,7 +170,7 @@ fun PrinterScreen(
                         }
                     }
                 }
-                is PrinterViewModel.SendingState.Success -> Card(
+                is PrinterViewModel.SendingState.PrintStarted -> Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF1B3D1E)),
                     shape = RoundedCornerShape(16.dp)
@@ -174,6 +179,17 @@ fun PrinterScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
                         Text("Print started!", color = Color(0xFF81C784), fontWeight = FontWeight.Bold)
+                    }
+                }
+                is PrinterViewModel.SendingState.UploadComplete -> Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1B3D1E)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
+                        Text("Uploaded successfully!", color = Color(0xFF81C784), fontWeight = FontWeight.Bold)
                     }
                 }
                 is PrinterViewModel.SendingState.Error -> Card(
@@ -227,6 +243,26 @@ fun PrinterScreen(
                                 )
                             }
                         }
+                    }
+                }
+            }
+
+            // ── Remote Screen (paxx12 extended firmware) ─────────────────────
+            if (status.isConnected && remoteScreenAvailable) {
+                val screenUrl = viewModel.remoteScreenUrl()
+                if (screenUrl != null) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Intent.ACTION_VIEW, Uri.parse(screenUrl))
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Monitor, contentDescription = null,
+                            modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Remote Screen")
                     }
                 }
             }

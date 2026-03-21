@@ -55,7 +55,7 @@ Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep an
 
 For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` if present.
 
-### Unit tests (`app/src/test/`) - 415 tests across 26 classes
+### Unit tests (`app/src/test/`) - 415 tests across 27 classes
 - `gcode/GcodeParserTest.kt` (18) — G-code parsing: layers, extrusion, extruder switching
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -73,11 +73,12 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - `bambu/ProfileEmbedderTest.kt` (5) — convertToModelSettings: per-volume extruder preservation, remap, attribute order
 - `ui/ExtruderAssignmentTest.kt` (6) — ExtruderAssignment defaults, copy, list building
 - `ui/FilamentJsonImportTest.kt` (15) — JSON import parsing: snake_case/camelCase, defaults, errors
-- `ui/MultiColorMappingTest.kt` (8) — ensureMultiSlotMapping collapse detection and sequential distribution
+- `ui/MultiColorMappingTest.kt` (9) — ensureMultiSlotMapping collapse detection and sequential distribution
 - `model/CopyArrangeCalculatorTest.kt` (18) — Centered grid layout, bed bounds, copy capping, wipe tower auto-positioning, skirt clearance
 - `UpgradeDetectorTest.kt` (15) — APK upgrade detection logic, version/timestamp comparison, file clearing patterns
 - `DiagnosticsStoreTest.kt` (5) — Diagnostics event logging, JSONL output
-- `MergeThreeMfInfoTest.kt` (13) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection
+- `MergeThreeMfInfoTest.kt` (17) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection
+- `printer/PrinterRepositoryTest.kt` (2) — upload filename sanitization and unique suffix generation
 - `PreparePreviewPlacementTest.kt` (2) — native 3MF wipe tower visibility and object-placement rules
 - `viewer/NativePreviewMeshTest.kt` (2) — preview budget guardrails for very large native meshes
 - iewer/ModelRendererCameraTest.kt (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
