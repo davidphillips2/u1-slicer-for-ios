@@ -1111,8 +1111,6 @@ fun ConfigCard(
     slicingOverrides: com.u1.slicer.data.SlicingOverrides = com.u1.slicer.data.SlicingOverrides(),
     onOverridesChange: ((com.u1.slicer.data.SlicingOverrides) -> Unit)? = null
 ) {
-    var expanded by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1120,23 +1118,11 @@ fun ConfigCard(
         ),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Settings, null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Slice Settings", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                }
-                IconButton(onClick = { expanded = !expanded }) {
-                    Icon(
-                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                        contentDescription = "Toggle settings"
-                    )
-                }
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Settings, null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Slice Settings", fontWeight = FontWeight.Bold, fontSize = 18.sp)
             }
 
             // Quick summary
@@ -1149,25 +1135,20 @@ fun ConfigCard(
                 QuickStat("Support", if (config.supportEnabled) "On" else "Off")
             }
 
-            AnimatedVisibility(visible = expanded) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
 
-                    if (onOverridesChange != null) {
-                        com.u1.slicer.ui.SlicingOverridesAccordion(
-                            overrides = slicingOverrides,
-                            onOverridesChange = onOverridesChange,
-                            defaultExpandedSection = "layer"
-                        )
-                    }
-
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                    InfoRow("Nozzle Diameter", "${config.nozzleDiameter} mm")
-                    InfoRow("Filament", config.filamentType)
-                    InfoRow("Build Volume", "270 x 270 x 270 mm")
-                }
+            if (onOverridesChange != null) {
+                com.u1.slicer.ui.SlicingOverridesAccordion(
+                    overrides = slicingOverrides,
+                    onOverridesChange = onOverridesChange,
+                    defaultExpandedSection = null
+                )
             }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            InfoRow("Nozzle Diameter", "${config.nozzleDiameter} mm")
+            InfoRow("Filament", config.filamentType)
+            InfoRow("Build Volume", "270 x 270 x 270 mm")
         }
     }
 }
