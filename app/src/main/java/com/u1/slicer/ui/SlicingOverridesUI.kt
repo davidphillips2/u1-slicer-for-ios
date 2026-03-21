@@ -37,7 +37,9 @@ fun SlicingOverridesAccordion(
     onOverridesChange: (SlicingOverrides) -> Unit,
     defaultExpandedSection: String? = null,
     plateType: PlateType? = null,
-    onPlateTypeChange: ((PlateType) -> Unit)? = null
+    onPlateTypeChange: ((PlateType) -> Unit)? = null,
+    bedTemp: Int? = null,
+    onBedTempChange: ((Int) -> Unit)? = null
 ) {
     var expandedSection by remember { mutableStateOf<String?>(defaultExpandedSection) }
 
@@ -523,19 +525,26 @@ fun SlicingOverridesAccordion(
         if (plateType != null && onPlateTypeChange != null) {
             PlateTypeRow(selectedPlate = plateType, onPlateChange = onPlateTypeChange)
         }
-        OverrideRow(
-            label = "Bed Temp",
-            override = overrides.bedTemp,
-            defaultHint = "60\u00B0C",
-            onModeChange = { mode -> onOverridesChange(overrides.copy(bedTemp = overrides.bedTemp.copy(mode = mode))) },
-            valueContent = {
-                OverrideIntField(
-                    value = overrides.bedTemp.value ?: 60,
-                    suffix = "\u00B0C",
-                    onValueChange = { onOverridesChange(overrides.copy(bedTemp = OverrideValue(OverrideMode.OVERRIDE, it))) }
-                )
-            }
-        )
+        if (bedTemp != null && onBedTempChange != null) {
+            // Simple editable bed temp field — value is set by plate type preset
+            // and can be adjusted directly by the user.
+            BedTempField(value = bedTemp, onValueChange = onBedTempChange)
+        } else {
+            // Fallback: 3-way override toggle (when plate type UI is not wired)
+            OverrideRow(
+                label = "Bed Temp",
+                override = overrides.bedTemp,
+                defaultHint = "60\u00B0C",
+                onModeChange = { mode -> onOverridesChange(overrides.copy(bedTemp = overrides.bedTemp.copy(mode = mode))) },
+                valueContent = {
+                    OverrideIntField(
+                        value = overrides.bedTemp.value ?: 60,
+                        suffix = "\u00B0C",
+                        onValueChange = { onOverridesChange(overrides.copy(bedTemp = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                    )
+                }
+            )
+        }
     }
 
     ExpandableOverrideSection(
@@ -776,6 +785,27 @@ fun PlateTypeRow(
             }
         }
     }
+}
+
+/**
+ * Simple bed temp field: shows the current value (set by plate type preset) and lets the
+ * user adjust it directly.  No File/Orca/Override toggle — just a number you can change.
+ */
+@Composable
+fun BedTempField(value: Int, onValueChange: (Int) -> Unit) {
+    var text by remember(value) { mutableStateOf(value.toString()) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = {
+            text = it
+            it.toIntOrNull()?.let { temp -> onValueChange(temp) }
+        },
+        label = { Text("Bed Temp") },
+        suffix = { Text("\u00B0C") },
+        modifier = Modifier.fillMaxWidth(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        singleLine = true
+    )
 }
 
 @Composable

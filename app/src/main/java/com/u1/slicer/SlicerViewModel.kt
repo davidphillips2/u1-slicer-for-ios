@@ -1064,6 +1064,14 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /** Direct bed temp edit — user overrides the plate type preset. */
+    fun setBedTemp(temp: Int) {
+        _config.value = _config.value.copy(bedTemp = temp)
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepo.saveSliceConfig(_config.value)
+        }
+    }
+
     fun saveSlicingOverrides(overrides: SlicingOverrides) {
         if (lastModelInfo != null) profileNeedsReEmbed = true
         viewModelScope.launch(Dispatchers.IO) {

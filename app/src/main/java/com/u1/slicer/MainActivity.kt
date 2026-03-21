@@ -747,7 +747,9 @@ fun PrepareScreen(
                             slicingOverrides = slicingOverrides,
                             onOverridesChange = { viewModel.saveSlicingOverrides(it) },
                             plateType = plateType,
-                            onPlateTypeChange = { viewModel.setPlateType(it) }
+                            onPlateTypeChange = { viewModel.setPlateType(it) },
+                            bedTemp = config.bedTemp,
+                            onBedTempChange = { viewModel.setBedTemp(it) }
                         )
                     }
                 }
@@ -1114,7 +1116,9 @@ fun ConfigCard(
     slicingOverrides: com.u1.slicer.data.SlicingOverrides = com.u1.slicer.data.SlicingOverrides(),
     onOverridesChange: ((com.u1.slicer.data.SlicingOverrides) -> Unit)? = null,
     plateType: com.u1.slicer.data.PlateType? = null,
-    onPlateTypeChange: ((com.u1.slicer.data.PlateType) -> Unit)? = null
+    onPlateTypeChange: ((com.u1.slicer.data.PlateType) -> Unit)? = null,
+    bedTemp: Int? = null,
+    onBedTempChange: ((Int) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1148,7 +1152,9 @@ fun ConfigCard(
                     onOverridesChange = onOverridesChange,
                     defaultExpandedSection = null,
                     plateType = plateType,
-                    onPlateTypeChange = onPlateTypeChange
+                    onPlateTypeChange = onPlateTypeChange,
+                    bedTemp = bedTemp,
+                    onBedTempChange = onBedTempChange
                 )
             }
 

@@ -346,7 +346,9 @@ fun SettingsScreen(
                     overrides = overrides,
                     onOverridesChange = { overrides = it },
                     plateType = plateType,
-                    onPlateTypeChange = { viewModel.setPlateType(it) }
+                    onPlateTypeChange = { viewModel.setPlateType(it) },
+                    bedTemp = config.bedTemp,
+                    onBedTempChange = { viewModel.setBedTemp(it) }
                 )
             }
 
