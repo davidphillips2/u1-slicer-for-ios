@@ -553,4 +553,149 @@ class SlicingOverridesTest {
         assertEquals("manual_brim", result["brim_type"])
         assertEquals("5.0", result["brim_width"])
     }
+
+    // --- F30/F31: New shell, infill-speed, surface-pattern, support-detail overrides ---
+
+    @Test
+    fun `default new overrides are all USE_FILE`() {
+        val ov = SlicingOverrides()
+        assertEquals(OverrideMode.USE_FILE, ov.topShellLayers.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.bottomShellLayers.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.topSurfacePattern.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.bottomSurfacePattern.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.sparseInfillSpeed.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.supportXyDistance.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.supportInterfacePattern.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.supportInterfaceSpacing.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.supportSpeed.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.treeSupportBranchAngle.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.treeSupportBranchDistance.mode)
+        assertEquals(OverrideMode.USE_FILE, ov.treeSupportBranchDiameter.mode)
+    }
+
+    @Test
+    fun `serialization round-trip preserves new override fields`() {
+        val original = SlicingOverrides(
+            topShellLayers = OverrideValue(OverrideMode.OVERRIDE, 4),
+            bottomShellLayers = OverrideValue(OverrideMode.OVERRIDE, 3),
+            topSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, "monotonic"),
+            bottomSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, "rectilinear"),
+            sparseInfillSpeed = OverrideValue(OverrideMode.OVERRIDE, 150),
+            supportXyDistance = OverrideValue(OverrideMode.OVERRIDE, 0.3f),
+            supportInterfacePattern = OverrideValue(OverrideMode.OVERRIDE, "rectilinear"),
+            supportInterfaceSpacing = OverrideValue(OverrideMode.OVERRIDE, 0.2f),
+            supportSpeed = OverrideValue(OverrideMode.OVERRIDE, 80),
+            treeSupportBranchAngle = OverrideValue(OverrideMode.OVERRIDE, 40),
+            treeSupportBranchDistance = OverrideValue(OverrideMode.OVERRIDE, 5.0f),
+            treeSupportBranchDiameter = OverrideValue(OverrideMode.OVERRIDE, 2.0f)
+        )
+        val restored = SlicingOverrides.fromJson(original.toJson())
+
+        assertEquals(OverrideMode.OVERRIDE, restored.topShellLayers.mode)
+        assertEquals(4, restored.topShellLayers.value)
+        assertEquals(OverrideMode.OVERRIDE, restored.bottomShellLayers.mode)
+        assertEquals(3, restored.bottomShellLayers.value)
+        assertEquals("monotonic", restored.topSurfacePattern.value)
+        assertEquals("rectilinear", restored.bottomSurfacePattern.value)
+        assertEquals(150, restored.sparseInfillSpeed.value)
+        assertEquals(0.3f, restored.supportXyDistance.value!!, 0.001f)
+        assertEquals("rectilinear", restored.supportInterfacePattern.value)
+        assertEquals(0.2f, restored.supportInterfaceSpacing.value!!, 0.001f)
+        assertEquals(80, restored.supportSpeed.value)
+        assertEquals(40, restored.treeSupportBranchAngle.value)
+        assertEquals(5.0f, restored.treeSupportBranchDistance.value!!, 0.001f)
+        assertEquals(2.0f, restored.treeSupportBranchDiameter.value!!, 0.001f)
+    }
+
+    @Test
+    fun `buildProfileOverrides emits top and bottom shell layers when overridden`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            topShellLayers = OverrideValue(OverrideMode.OVERRIDE, 5),
+            bottomShellLayers = OverrideValue(OverrideMode.OVERRIDE, 4)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertEquals("5", result["top_shell_layers"])
+        assertEquals("4", result["bottom_shell_layers"])
+    }
+
+    @Test
+    fun `buildProfileOverrides emits surface patterns when overridden`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            topSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, "concentric"),
+            bottomSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, "monotonic")
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertEquals("concentric", result["top_surface_pattern"])
+        assertEquals("monotonic", result["bottom_surface_pattern"])
+    }
+
+    @Test
+    fun `buildProfileOverrides emits sparse infill speed when overridden and nonzero`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(sparseInfillSpeed = OverrideValue(OverrideMode.OVERRIDE, 200))
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertEquals("200", result["sparse_infill_speed"])
+    }
+
+    @Test
+    fun `buildProfileOverrides omits sparse infill speed when zero (auto)`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(sparseInfillSpeed = OverrideValue(OverrideMode.OVERRIDE, 0))
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertFalse("sparse_infill_speed=0 means auto — must not be emitted", result.containsKey("sparse_infill_speed"))
+    }
+
+    @Test
+    fun `buildProfileOverrides emits support detail keys when overridden`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            supportXyDistance = OverrideValue(OverrideMode.OVERRIDE, 0.35f),
+            supportInterfacePattern = OverrideValue(OverrideMode.OVERRIDE, "rectilinear"),
+            supportInterfaceSpacing = OverrideValue(OverrideMode.OVERRIDE, 0.2f),
+            supportSpeed = OverrideValue(OverrideMode.OVERRIDE, 60)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertEquals("0.35", result["support_object_xy_distance"])
+        assertEquals("rectilinear", result["support_interface_pattern"])
+        assertEquals("0.2", result["support_interface_spacing"])
+        assertEquals("60", result["support_speed"])
+    }
+
+    @Test
+    fun `buildProfileOverrides omits support speed when zero (auto)`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(supportSpeed = OverrideValue(OverrideMode.OVERRIDE, 0))
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertFalse("support_speed=0 means auto — must not be emitted", result.containsKey("support_speed"))
+    }
+
+    @Test
+    fun `buildProfileOverrides emits tree support params only when tree support is active`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            supports = OverrideValue(OverrideMode.OVERRIDE, true),
+            supportType = OverrideValue(OverrideMode.OVERRIDE, "tree(auto)"),
+            treeSupportBranchAngle = OverrideValue(OverrideMode.OVERRIDE, 45),
+            treeSupportBranchDistance = OverrideValue(OverrideMode.OVERRIDE, 6.0f),
+            treeSupportBranchDiameter = OverrideValue(OverrideMode.OVERRIDE, 2.5f)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertEquals("45", result["tree_support_branch_angle"])
+        assertEquals("6.0", result["tree_support_branch_distance"])
+        assertEquals("2.5", result["tree_support_branch_diameter"])
+    }
+
+    @Test
+    fun `buildProfileOverrides omits tree support params when normal support is active`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            supports = OverrideValue(OverrideMode.OVERRIDE, true),
+            supportType = OverrideValue(OverrideMode.OVERRIDE, "normal(auto)"),
+            treeSupportBranchAngle = OverrideValue(OverrideMode.OVERRIDE, 45)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
+        assertFalse("tree params must not appear for normal support", result.containsKey("tree_support_branch_angle"))
+    }
 }

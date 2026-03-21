@@ -253,6 +253,33 @@ class MoonrakerClientTest {
         assertTrue(off.contains("WHITE=0"))
         assertTrue(on.contains("LED=cavity_led"))
     }
+
+    // --- F34: remoteScreenUrl() derivation ---
+
+    @Test
+    fun `remoteScreenUrl builds screen URL from standard Moonraker base URL`() {
+        val client = MoonrakerClient().also { it.baseUrl = "192.168.0.151" }
+        assertEquals("http://192.168.0.151/screen/", client.remoteScreenUrl())
+    }
+
+    @Test
+    fun `remoteScreenUrl uses host without port for screen endpoint`() {
+        // The paxx12 firmware serves /screen/ on port 80 (nginx), not Moonraker's 7125
+        val client = MoonrakerClient().also { it.baseUrl = "printer.local" }
+        assertEquals("http://printer.local/screen/", client.remoteScreenUrl())
+    }
+
+    @Test
+    fun `remoteScreenUrl preserves https scheme`() {
+        val client = MoonrakerClient().also { it.baseUrl = "https://printer.local" }
+        assertEquals("https://printer.local/screen/", client.remoteScreenUrl())
+    }
+
+    @Test
+    fun `remoteScreenUrl returns null for blank base URL`() {
+        val client = MoonrakerClient() // baseUrl stays ""
+        assertNull(client.remoteScreenUrl())
+    }
 }
 
 // MoonrakerClientTestHelper removed — tests now use MoonrakerClient.normalizeUrl() directly.

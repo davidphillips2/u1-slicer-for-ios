@@ -298,6 +298,122 @@ class GcodeParserTest {
         assertEquals(5678.9f, result.perExtruderFilamentMm[0], 0.01f)
     }
 
+    // --- F33/F28: ;TYPE: feature-type tagging and prime-tower waste ---
+
+    @Test
+    fun `parse TYPE comment tags outer wall moves`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Outer wall
+            G1 X10 Y0 E1.0
+            G1 X10 Y10 E2.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertTrue("All moves should be tagged OUTER_WALL", moves.all { it.featureType == FeatureType.OUTER_WALL })
+    }
+
+    @Test
+    fun `parse TYPE comment tags inner wall moves`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Inner wall
+            G1 X10 Y0 E1.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertTrue(moves.all { it.featureType == FeatureType.INNER_WALL })
+    }
+
+    @Test
+    fun `parse TYPE comment tags sparse infill moves`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Sparse infill
+            G1 X10 Y0 E1.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertTrue(moves.all { it.featureType == FeatureType.SPARSE_INFILL })
+    }
+
+    @Test
+    fun `parse TYPE comment tags support moves`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Support
+            G1 X10 Y0 E1.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertTrue(moves.all { it.featureType == FeatureType.SUPPORT })
+    }
+
+    @Test
+    fun `parse TYPE comment tags prime tower moves`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Prime tower
+            G1 X10 Y0 E1.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertTrue(moves.all { it.featureType == FeatureType.PRIME_TOWER })
+    }
+
+    @Test
+    fun `parse TYPE comment resets between feature regions`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Outer wall
+            G1 X10 Y0 E1.0
+            ;TYPE:Sparse infill
+            G1 X20 Y0 E2.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        val moves = result.layers[0].moves.filter { it.type == MoveType.EXTRUDE }
+        assertEquals(2, moves.size)
+        assertEquals(FeatureType.OUTER_WALL, moves[0].featureType)
+        assertEquals(FeatureType.SPARSE_INFILL, moves[1].featureType)
+    }
+
+    @Test
+    fun `wipe tower filament accumulates E used inside prime tower region`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Outer wall
+            G1 X10 Y0 E5.0
+            ;TYPE:Prime tower
+            G1 X20 Y0 E8.0
+            G1 X30 Y0 E12.0
+            ;TYPE:Outer wall
+            G1 X40 Y0 E13.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        // Prime tower region consumed E12.0 - E5.0 = 7.0mm
+        assertEquals(7.0f, result.wipeTowerFilamentMm, 0.1f)
+    }
+
+    @Test
+    fun `wipe tower filament is zero when no prime tower present`() {
+        val file = writeGcode("""
+            ;LAYER_CHANGE
+            G1 Z0.3
+            ;TYPE:Outer wall
+            G1 X10 Y0 E5.0
+            G1 X20 Y0 E10.0
+        """.trimIndent())
+        val result = GcodeParser.parse(file)
+        assertEquals(0f, result.wipeTowerFilamentMm, 0.01f)
+    }
+
     // Helper extension
     private fun ParsedGcode.moves(layerIndex: Int) = layers[layerIndex].moves
 }
