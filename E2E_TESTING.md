@@ -1,13 +1,13 @@
 # U1 Slicer - E2E Testing
 
-Current release line: `v1.4.13` (`versionCode 102`)
+Current release line: `v1.4.17` (`versionCode 106`)
 Primary test device: See `E2E_TESTING.local.md` for the private device IDs used on this machine.
 
 ## Automated baseline
 
-- JVM unit tests: `408`
+- JVM unit tests: `437`
 - Instrumented tests: `118`
-- Full automated total: `526`
+- Full automated total: `555`
 
 Run before release:
 

@@ -36,37 +36,6 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Open Features
 
-### F29: Prompt to slice when navigating to Preview with no current slice
-- If the user taps Preview but no slice result exists (idle bed), show a dialog or snackbar asking if they want to slice now
-- Should respect current model/settings and trigger the slice pipeline on confirmation
-
-### F30: Support settings expansion
-- Expose more support-structure settings in the UI: support type (normal/tree), support interface layers, interface spacing, support expansion, XY distance, Z distance, threshold angle, support-on-build-plate-only toggle
-- Currently most of these fall back to OrcaSlicer defaults; add to `buildProfileOverrides()` and the settings panel
-
-### F31: More infill settings
-- Expose infill pattern (grid, gyroid, honeycomb, etc.), infill anchor length, infill overlap, and sparse infill speed
-- Add keys to `buildProfileOverrides()` and the SlicingOverrides system
-
-### F32: Settings panel open / expanded by default on Prepare screen
-- Settings accordion is currently collapsed on entry; make it default-open so users see the key knobs immediately
-- Should persist the expanded/collapsed state in DataStore so the user's preference is remembered
-
-### F33: G-code preview visual improvements — DONE (feature-type colors)
-- `GcodeParser` now tags each move with a `featureType` byte (OUTER_WALL, INNER_WALL, SPARSE_INFILL, etc.)
-- `GcodeRenderer` has a `useFeatureColors` mode that swaps extruder-based coloring for a 12-color feature-type palette
-- Toggle via the Palette icon button in the 3D viewer toolbar (`GcodeViewer3DScreen`); re-uploads VBO on change while preserving camera position
-
-### F34: Remote screen view (paxx12 extended firmware)
-- Source: https://github.com/paxx12/SnapmakerU1-Extended-Firmware — custom Snapmaker U1 firmware that exposes the printer touchscreen remotely
-- The firmware runs a Python framebuffer capture server (`fb-http-server.py`) behind nginx; the screen is available at `http://<printer-ip>/screen/`
-- Protocol: plain HTTP (not WebSocket); returns framebuffer snapshots; also accepts touch input
-- Auth is inherited from Fluidd/Mainsail (same credentials as the printer web UI)
-- Integration idea: add a "Remote Screen" tile or button in the app's Printer screen that opens a WebView (or custom renderer) pointed at `http://<printer-ip>/screen/` when the printer is reachable
-- Must support regular unmodified U1 printers gracefully — the feature should be invisible/disabled when the firmware is not present
-- Detection approach: either auto-detect by probing `http://<printer-ip>/screen/` (show the button only if it responds 200) or add a manual toggle in Printer settings ("Extended firmware remote screen")
-- Prefer auto-detection so unmodified U1 users see no difference; fall back to manual opt-in if probing adds noticeable latency
-
 ### F36: Plate type selector with bed-temp presets (GitHub #1, partial)
 - Reporter: ThorinOkenshield — wants a plate type picker (Textured PEI, Smooth PEI, Cool Plate, Engineering Plate) that auto-adjusts bed temperature
 - Textured PEI should be the default (current behavior)
@@ -88,10 +57,6 @@ Open bugs, features, and investigations. Everything else is done — see git log
 ### F27: Cancel slicing mid-operation
 - No way to abort a slice once started — user must wait or force-kill
 - Requires native cancellation support (check OrcaSlicer for a cancel flag in the slicing loop)
-
-### F28: Show prime tower filament usage on Preview page — DONE
-- `GcodeParser` now tracks `;TYPE:Prime tower` E-value boundaries and accumulates `wipeTowerFilamentMm` in `ParsedGcode`
-- `SliceCompleteSummaryCard` shows "Prime Tower Waste" row (mm + grams) in amber when > 0.5mm
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:

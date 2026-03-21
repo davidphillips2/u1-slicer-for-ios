@@ -6,7 +6,7 @@ Native Android slicer for the **Snapmaker U1** 3D printer (270×270×270mm, 4 ex
 
 Built with Kotlin, Jetpack Compose, and OrcaSlicer's C++ engine via JNI — no server required, everything runs on-device.
 
-Current release: `v1.4.10` (`versionCode 99`)
+Current release: `v1.4.17` (`versionCode 106`)
 
 ## Security
 
@@ -17,9 +17,10 @@ Security reports should be handled privately. See [SECURITY.md](SECURITY.md) for
 - **STL and 3MF slicing** — single-color, multi-color (up to 4 extruders), and paint-based (SEMM)
 - **Bambu 3MF support** — multi-plate extraction, profile embedding, sanitization pipeline
 - **3D model viewer** — OpenGL ES 3.0, drag-to-place models on bed, scale, copies
-- **3D G-code viewer** — per-layer toolpath rendering with Gouraud shading
+- **3D G-code viewer** — per-layer toolpath rendering with Gouraud shading; feature-type color mode (outer wall, infill, support, etc.)
 - **Wipe tower auto-positioning** — evaluates 8 candidates, picks spot with most clearance
-- **Moonraker connectivity** — send G-code directly to your printer
+- **Moonraker connectivity** — send G-code directly to your printer; remote screen support for paxx12 extended firmware
+- **Slicer overrides** — per-job control over layer height, infill, support, shell layers, surface patterns, speeds, wipe tower, and more
 - **MakerWorld integration** — share models from Bambu Handy to slice locally
 - **Filament library** — manage profiles with temps, speeds, retraction settings
 - **Settings backup/restore** — export and import all app settings as JSON
@@ -67,11 +68,11 @@ The native `.so` is pre-built and committed to `app/src/main/jniLibs/arm64-v8a/`
 ## Testing
 
 ```bash
-./gradlew testDebugUnitTest              # 415 JVM unit tests
+./gradlew testDebugUnitTest              # 437 JVM unit tests
 ./gradlew connectedDebugAndroidTest      # 118 instrumented tests (ARM64 device required)
 ```
 
-**533 total tests** covering G-code parsing/validation, 3MF sanitization, STL parsing, slicing integration, profile embedding, Room DAOs, placement layout, and more.
+**555 total tests** covering G-code parsing/validation, feature-type tagging, 3MF sanitization, STL parsing, slicing integration, profile embedding, Room DAOs, placement layout, and more.
 
 Instrumented tests use [Android Test Orchestrator](https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner#use-android) to run each test in its own process — prevents native memory accumulation across slicing tests.
 
