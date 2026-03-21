@@ -899,6 +899,17 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         val fullColors = buildPreviewSlotColors(extruderPresets, usedSlots)
         _activeExtruderColors.value = fullColors
         Log.i("SlicerVM", "Applied color mapping: $extCount extruders used=${usedSlots}, remap=${toolRemapSlots}, temps=${temps.toList()}, colors=$fullColors")
+        diagnostics.recordEvent(
+            "color_mapping_applied",
+            mapOf(
+                "colorMapping" to modelColorToExtruder,
+                "usedSlots" to usedSlots,
+                "extCount" to extCount,
+                "toolRemapSlots" to toolRemapSlots,
+                "isIdentity" to (toolRemapSlots == null),
+                "slotColors" to fullColors
+            )
+        )
     }
 
     fun dismissMultiColorDialog() {
@@ -1049,6 +1060,19 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             "info.hasToolChanges=${info.hasLayerToolChanges}, info.hasPaint=${info.hasPaintData}, " +
             "info.isMultiPlate=${info.isMultiPlate}, sourceConfig=${sourceConfig != null}, " +
             "targetCount=$targetCount, extruderRemap=$extruderRemap")
+        diagnostics.recordEvent(
+            "profile_embedded",
+            mapOf(
+                "targetCount" to targetCount,
+                "usedSlots" to usedSlots,
+                "colorMapping" to colorMapping,
+                "extruderRemap" to extruderRemap,
+                "isBambu" to info.isBambu,
+                "hasPaint" to info.hasPaintData,
+                "hasSourceConfig" to (sourceConfig != null),
+                "detectedExtruders" to info.detectedExtruderCount
+            )
+        )
         val embeddedConfig = profileEmbedder.buildConfig(
             info = info,
             sourceConfig = sourceConfig,
@@ -1064,6 +1088,16 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun configureNativeDiagnosticsIfAvailable() {
         if (!NativeLibrary.isLoaded) return
+        // Detect hard native crashes (OOM/SIGSEGV) from the previous session.
+        // A stale marker means native.slice() started but the process was killed before
+        // clearSliceInProgress() ran in the finally block.
+        val staleMarker = diagnostics.consumeSliceInProgressMarker()
+        if (staleMarker != null) {
+            diagnostics.recordEvent(
+                "hard_crash_during_slice",
+                mapOf("staleMarker" to staleMarker)
+            )
+        }
         try {
             native.configureDiagnostics(diagnostics.diagnosticsPath())
             diagnostics.recordNativeConfigured(native.getDiagnosticsState())
@@ -1099,6 +1133,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             "copyCount" to _copyCount.value,
             "hasCustomPlacement" to (customObjectPositions != null),
             "toolRemapSlots" to toolRemapSlots,
+            "colorMapping" to _colorMapping.value,
             "extruderCount" to sliceConfig.extruderCount,
             "wipeTowerEnabled" to sliceConfig.wipeTowerEnabled,
             "wipeTowerX" to sliceConfig.wipeTowerX,
@@ -1336,6 +1371,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     "extruders=${sliceConfig.extruderCount} wipeTower=${sliceConfig.wipeTowerEnabled} " +
                     "wipeTowerXY=(${sliceConfig.wipeTowerX},${sliceConfig.wipeTowerY})")
 
+                diagnostics.markSliceInProgress(currentModelFile!!.name)
                 val result = native.slice(sliceConfig)
 
                 if (result != null && result.success) {
@@ -1431,6 +1467,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 _state.value = SlicerState.Error(clipperUserMessage("Slicing error: $errorMsg"))
             } finally {
+                diagnostics.clearSliceInProgress()
                 native.progressListener = null
                 SlicingService.stop(context)
             }

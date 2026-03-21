@@ -377,7 +377,16 @@ class ProfileEmbedder(private val context: Context) {
 
     private fun clampScalarPosition(config: MutableMap<String, Any>, key: String, min: Float, max: Float) {
         val raw = config[key] ?: return
-        if (raw is List<*>) return // Don't clamp per-plate arrays
+        if (raw is List<*>) {
+            // buildProfileOverrides writes wipe_tower_x/y as per-extruder lists; clamp each element
+            @Suppress("UNCHECKED_CAST")
+            val list = raw as? MutableList<Any> ?: return
+            for (i in list.indices) {
+                val v = list[i].toString().toFloatOrNull() ?: continue
+                if (v < min || v > max) list[i] = "%.3f".format(v.coerceIn(min, max))
+            }
+            return
+        }
         val value = raw.toString().toFloatOrNull() ?: return
         if (value < min || value > max) {
             config[key] = "%.3f".format(value.coerceIn(min, max))

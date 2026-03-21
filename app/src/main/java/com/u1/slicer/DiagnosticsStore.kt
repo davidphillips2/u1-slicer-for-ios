@@ -21,6 +21,7 @@ class DiagnosticsStore(private val context: Context) {
     companion object {
         private const val PREFS_NAME = "clipper_diagnostics"
         private const val KEY_PENDING_RESTART = "pending_restart"
+        private const val KEY_SLICE_IN_PROGRESS = "slice_in_progress"
         private const val MAX_HISTORY_LINES = 200
 
         @Volatile
@@ -122,6 +123,36 @@ class DiagnosticsStore(private val context: Context) {
         prefs.edit().remove(KEY_PENDING_RESTART).apply()
         sessionHasPostUpgradeGuard = false
         recordEvent("post_upgrade_slice_settled")
+    }
+
+    /**
+     * Persist a "slice in progress" marker before calling native.slice().
+     * If the process is killed (OOM, SIGSEGV) the marker survives and is detected
+     * on the next launch via [consumeSliceInProgressMarker].
+     */
+    fun markSliceInProgress(modelName: String) {
+        val marker = JSONObject()
+        marker.put("modelName", modelName)
+        marker.put("startedAtMs", System.currentTimeMillis())
+        marker.put("sessionId", sessionId)
+        marker.put("pid", Process.myPid())
+        marker.put("appVersion", BuildConfig.VERSION_NAME)
+        prefs.edit().putString(KEY_SLICE_IN_PROGRESS, marker.toString()).commit()
+    }
+
+    /** Clear the in-progress marker after slice completes or throws a caught exception. */
+    fun clearSliceInProgress() {
+        prefs.edit().remove(KEY_SLICE_IN_PROGRESS).apply()
+    }
+
+    /**
+     * Called once on app launch. Returns the stale marker JSON string if the previous
+     * slice never completed (hard crash), and removes it. Returns null otherwise.
+     */
+    fun consumeSliceInProgressMarker(): String? {
+        val marker = prefs.getString(KEY_SLICE_IN_PROGRESS, null) ?: return null
+        prefs.edit().remove(KEY_SLICE_IN_PROGRESS).apply()
+        return marker
     }
 
     @Synchronized
