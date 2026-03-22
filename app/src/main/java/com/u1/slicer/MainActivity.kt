@@ -353,6 +353,7 @@ class MainActivity : ComponentActivity() {
                         PrepareScreen(
                             viewModel = viewModel,
                             onPickFile = { filePickerLauncher.launch(pickFileMimeTypes) },
+                            onBrowseMakerWorld = { navController.navigate(Routes.MAKERWORLD_BROWSER) },
                             onNavigatePrepare = { },
                             onNavigatePreview = { navigateTab(Routes.PREVIEW) },
                             onNavigateSettings = { navigateTab(Routes.SETTINGS) },
@@ -423,7 +424,7 @@ class MainActivity : ComponentActivity() {
                             onNavigatePrinter = { navigateTab(Routes.PRINTER) },
                             onNavigateJobs = { navigateTab(Routes.JOBS) },
                             onNavigateSettings = { },
-                            onNavigateMakerWorldLogin = { navController.navigate(Routes.MAKERWORLD_LOGIN) }
+                            onNavigateMakerWorldLogin = { navController.navigate(Routes.MAKERWORLD_BROWSER) }
                         )
                     }
                 )
@@ -528,6 +529,7 @@ fun RowScope.U1BottomNavItems(
 fun PrepareScreen(
     viewModel: SlicerViewModel,
     onPickFile: () -> Unit,
+    onBrowseMakerWorld: () -> Unit = {},
     onNavigatePrepare: () -> Unit,
     onNavigatePreview: () -> Unit,
     onNavigateSettings: () -> Unit,
@@ -638,7 +640,8 @@ fun PrepareScreen(
                 when {
                     state is SlicerViewModel.SlicerState.Idle -> {
                         PrepareEmptyState(
-                            onPickFile = onPickFile
+                            onPickFile = onPickFile,
+                            onBrowseMakerWorld = onBrowseMakerWorld
                         )
                     }
                     state is SlicerViewModel.SlicerState.Loading -> {
@@ -810,7 +813,7 @@ fun PrepareScreen(
 // Prepare Empty State — dimmed bed background with + button overlay
 // =============================================================================
 @Composable
-fun PrepareEmptyState(onPickFile: () -> Unit) {
+fun PrepareEmptyState(onPickFile: () -> Unit, onBrowseMakerWorld: () -> Unit = {}) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -870,6 +873,13 @@ fun PrepareEmptyState(onPickFile: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onBrowseMakerWorld,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Browse MakerWorld")
+            }
         }
     }
 }

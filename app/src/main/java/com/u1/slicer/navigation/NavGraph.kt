@@ -10,7 +10,7 @@ import com.u1.slicer.SlicerViewModel
 import com.u1.slicer.printer.PrinterViewModel
 import com.u1.slicer.ui.FilamentScreen
 import com.u1.slicer.ui.GcodeViewer3DScreen
-import com.u1.slicer.ui.MakerWorldLoginScreen
+import com.u1.slicer.ui.MakerWorldBrowserScreen
 import com.u1.slicer.ui.ModelViewerScreen
 
 object Routes {
@@ -22,7 +22,7 @@ object Routes {
     const val JOBS = "jobs"
     const val GCODE_VIEWER_3D = "gcode_viewer_3d"
     const val MODEL_VIEWER = "model_viewer"
-    const val MAKERWORLD_LOGIN = "makerworld_login"
+    const val MAKERWORLD_BROWSER = "makerworld_browser"
 }
 
 @Composable
@@ -93,10 +93,12 @@ fun U1NavGraph(
                 )
             }
         }
-        composable(Routes.MAKERWORLD_LOGIN) {
-            MakerWorldLoginScreen(
+        composable(Routes.MAKERWORLD_BROWSER) {
+            MakerWorldBrowserScreen(
                 viewModel = viewModel,
-                onLoginComplete = { navController.popBackStack() },
+                onModelDownloaded = {
+                    navController.popBackStack(Routes.PREPARE, inclusive = false)
+                },
                 onBack = { navController.popBackStack() }
             )
         }

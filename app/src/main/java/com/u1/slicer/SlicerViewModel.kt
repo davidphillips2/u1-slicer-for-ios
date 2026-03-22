@@ -596,6 +596,46 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * Download a model from a pre-signed URL (e.g. from MakerWorld WebView)
+     * and load it into the slicer.
+     */
+    fun downloadAndLoadModel(url: String, filename: String, userAgent: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _state.value = SlicerState.Loading("Downloading $filename…")
+                val context = getApplication<Application>()
+                val safeFilename = filename.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                val cacheFile = File(context.cacheDir, safeFilename)
+                val client = okhttp3.OkHttpClient.Builder()
+                    .followRedirects(true)
+                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(120, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .header("User-Agent", userAgent)
+                    .build()
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) {
+                    response.close()
+                    _state.value = SlicerState.Error("Download failed: HTTP ${response.code}")
+                    return@launch
+                }
+                response.body?.byteStream()?.use { input ->
+                    cacheFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Log.i("SlicerVM", "MakerWorld browser download complete: ${cacheFile.name} (${cacheFile.length()} bytes)")
+                loadModelFromFile(cacheFile)
+            } catch (e: Exception) {
+                Log.e("SlicerVM", "MakerWorld browser download failed", e)
+                _state.value = SlicerState.Error("Download failed: ${e.message}")
+            }
+        }
+    }
+
     fun loadModelFromFile(file: File) {
         if (!NativeLibrary.isLoaded) {
             _state.value = SlicerState.Error("Native slicer library not available on this device (arm64 required)")

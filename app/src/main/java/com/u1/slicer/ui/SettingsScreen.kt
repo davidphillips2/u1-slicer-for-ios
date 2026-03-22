@@ -258,26 +258,12 @@ fun SettingsScreen(
             }
 
             SettingsSection("MakerWorld") {
-                // Primary action: WebView login
-                if (hasCookies) {
-                    Text(
-                        "Logged in to MakerWorld",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF4CAF50),
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                    OutlinedButton(
-                        onClick = onNavigateMakerWorldLogin,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Log in again") }
-                } else {
-                    Button(
-                        onClick = onNavigateMakerWorldLogin,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    ) { Text("Log in to MakerWorld") }
-                }
+                // Primary action: Browse MakerWorld in WebView
+                Button(
+                    onClick = onNavigateMakerWorldLogin,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) { Text("Browse MakerWorld") }
 
                 // Advanced: manual cookie entry (collapsed by default)
                 var showAdvanced by remember { mutableStateOf(false) }
@@ -577,24 +563,39 @@ private fun CookieInfoDialog(onDismiss: () -> Unit) {
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("Got it") }
         },
-        title = { Text("How to get your MakerWorld cookies") },
+        title = { Text("MakerWorld Cookies") },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "Get cookies from your browser:",
+                    "Recommended: Browse MakerWorld",
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
+                Text(
+                    "Tap \"Browse MakerWorld\" on the Prepare screen. Log in once and your session is saved. Downloads go straight to the slicer.",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+                )
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    "Alternative: Manual cookie entry",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                Text(
+                    "If browsing doesn't work (e.g. social login), you can paste cookies manually:",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                )
                 val browserSteps = listOf(
-                    "Log in to makerworld.com in your browser",
+                    "Log in to makerworld.com in your PC browser",
                     "Press F12 to open Developer Tools\n(steps shown for Chrome; other browsers are similar)",
-                    "Go to the Network tab",
-                    "Check \"Preserve log\"",
+                    "Go to the Network tab and check \"Preserve log\"",
                     "Navigate to any model page",
-                    "Click the \"Doc\" filter to show page requests only",
-                    "Click the first makerworld.com request",
+                    "Click \"Doc\" filter, then the first makerworld.com request",
                     "In Request Headers, find the Cookie header",
-                    "Right-click the value → Copy value"
+                    "Right-click the value → Copy value",
+                    "Paste into a text file and send to your phone, or paste directly below"
                 )
                 browserSteps.forEachIndexed { i, step ->
                     Text(
@@ -603,33 +604,9 @@ private fun CookieInfoDialog(onDismiss: () -> Unit) {
                         modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    "Transfer to your phone:",
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-                val transferSteps = listOf(
-                    "Paste the cookie value into a text file (.txt)",
-                    "Send it to your phone (email, Google Drive, USB, etc.)",
-                    "Tap \"Import from File\" below"
-                )
-                transferSteps.forEachIndexed { i, step ->
-                    Text(
-                        "${i + 1}. $step",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = 8.dp, bottom = 2.dp)
-                    )
-                }
-                Text(
-                    "Or paste directly if you have a clipboard sync app.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(top = 4.dp)
-                )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                 Text(
-                    "Cookies expire periodically. If downloads stop working, repeat these steps to refresh.",
+                    "Cookies expire periodically. If downloads stop working, browse MakerWorld again or refresh your cookies.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

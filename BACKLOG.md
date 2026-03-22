@@ -12,6 +12,7 @@ Open bugs, features, and investigations. Everything else is done — see git log
 ### B18: OOM on large/complex 3MF files
 - Reproduce with: `C:\Users\kevin\Downloads\test-data\2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf`
 - This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
+- Also reproduced via MakerWorld WebView download: `super clean.3mf` (58 MB compressed, native tried to allocate 331 MB → OOM with 187 MB free)
 - Investigate memory usage across import, sanitize, embed, and native load for giant component-model files
 
 ### B31: First slip/slide slice can hit a native Clipper range crash — FIXED v1.4.20
