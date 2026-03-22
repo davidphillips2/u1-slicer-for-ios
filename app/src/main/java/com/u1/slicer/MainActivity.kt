@@ -179,6 +179,11 @@ class MainActivity : ComponentActivity() {
                         "apkUpdateTime" to apkLastUpdate
                     )
                 )
+                // APK upgrade provides fresh native state — clear stale clipper
+                // recovery markers so we don't double-restart or report a false
+                // hard_crash_during_slice from the previous version's session.
+                diagnostics.consumeClipperRecoveryPending()
+                diagnostics.consumeSliceInProgressMarker()
                 diagnostics.markUpgradeRestartRequested("apk_changed", null)
                 scheduleSelfRestartAndKill()
                 return true
