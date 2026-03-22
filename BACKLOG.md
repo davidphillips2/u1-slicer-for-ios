@@ -14,19 +14,13 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
 - Investigate memory usage across import, sanitize, embed, and native load for giant component-model files
 
-### B31: First slip/slide slice can hit a native Clipper range crash
-- Repro from `G:/My Drive/tes-data/clipper_investigation_bundle (1).txt`
-- First slice attempt on `slip slide spin fidget.3mf` failed with `Coordinate outside allowed range`
-- Investigation: crash occurs on first slice after APK upgrade (`previousNativeGeneration=null`). Recovery via AlarmManager restart always succeeds. Pattern is consistent with stale native state after upgrade rather than a wipe-tower placement issue.
-- No further Kotlin-side fix available without a native rebuild. `UpgradeDetector` already clears cached slice state on version bump.
-- Leave open until a native-side fix is identified or the crash stops occurring after a clean-state slice.
+### B31: First slip/slide slice can hit a native Clipper range crash — FIXED v1.4.20
+- Root cause: ARM64 FCVTZS saturation producing INT64_MIN/MAX in Clipper `IntersectPoint` vertical-edge paths and `Round<int64_t>()` for large-but-finite doubles
+- Kotlin fix: clamp wipe tower to bed bounds before slicing; persist clipper recovery flag across restart to prevent crash-loop
+- Native fix: overflow guards in `IntersectPoint` (vertical-edge + general-case `Dx*q+b`) and `Round()` (large double detection), all falling back to scanbeam position
+- v1.4.21: clear stale clipper markers on APK upgrade to prevent false crash report after updating
 
 ## Open Features
-
-### F35: Post-upgrade Clipper coordinate error — still occurring
-- Related to B31 / old I2 fix: users still hit "Coordinate outside allowed range" crashes after an app upgrade
-- Needs a fresh repro trace post-v1.4.x to see if the upgrade detector / stale-config clearing is firing correctly
-- Check whether `UpgradeDetector` is clearing all relevant cached slice state on version bump
 
 ### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork)
 - Source: ratdoux/OrcaSlicer-FullSpectrum — fork of Snapmaker Orca 2.2.4
@@ -37,6 +31,9 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **B31/F35**: Clipper coordinate overflow crash on multi-colour SEMM models — native overflow guards in `IntersectPoint` and `Round()`, Kotlin wipe tower clamping, crash-loop prevention, stale marker cleanup on APK upgrade — FIXED v1.4.20/v1.4.21
+- **Cookie file import**: CookieInfoDialog with browser export + file transfer instructions, stream handling fixes — DONE v1.4.20
+- **F36 (bed temp)**: Editable bed temp field below plate type selector — DONE v1.4.19
 - **Color bug (SEMM)**: SEMM models with non-identity color remapping on Prepare screen now produce correct G-code T-commands — fixed `isIdentity` logic and suppressed extruderRemap in model_settings.config for paint-data models — FIXED v1.4.18
 - **B33**: Print progress stuck at 0% — `virtual_sdcard.progress` is now used as the primary progress source (falls back to `print_stats.progress` on older firmware) — FIXED v1.4.18
 - **B35**: Upload-only completion card now shows a hint: "To print, tap Print on the Preview screen or select the file on your printer." — FIXED v1.4.18

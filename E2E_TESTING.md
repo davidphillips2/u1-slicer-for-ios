@@ -1,6 +1,6 @@
 # U1 Slicer - E2E Testing
 
-Current release line: `v1.4.20` (`versionCode 109`)
+Current release line: `v1.4.21` (`versionCode 110`)
 Primary test device: See `E2E_TESTING.local.md` for the private device IDs used on this machine.
 
 ## Automated baseline
