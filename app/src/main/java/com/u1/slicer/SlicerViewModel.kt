@@ -57,7 +57,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     // ---- UI State ----
     sealed class SlicerState {
         object Idle : SlicerState()
-        data class Loading(val filename: String) : SlicerState()
+        data class Loading(val message: String) : SlicerState()
         data class ModelLoaded(val info: ModelInfo) : SlicerState()
         data class Slicing(val progress: Int, val stage: String) : SlicerState()
         data class SliceComplete(val result: SliceResult) : SlicerState()
@@ -382,7 +382,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     val fileName = parsed.fileName
                     Log.i("SlicerVM", "MakerWorld redirect: $fileName -> ${fileUrl.take(80)}...")
                     currentModelName = fileName
-                    _state.value = SlicerState.Loading(fileName)
+                    _state.value = SlicerState.Loading("Downloading $fileName…")
 
                     val fileRequest = okhttp3.Request.Builder().url(fileUrl)
                         .header("User-Agent", "U1Slicer/1.0 Android").get().build()
@@ -490,7 +490,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
                 val filename = getDisplayName(context, uri) ?: "model.stl"
                 currentModelName = filename
-                _state.value = SlicerState.Loading(filename)
+                _state.value = SlicerState.Loading("Loading $filename…")
                 val file = File(context.filesDir, filename)
                 // Copy via temp file to avoid self-referential truncation
                 // when the source URI points to our own FileProvider
@@ -614,7 +614,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
                 val filename = file.name
                 currentModelName = filename
-                _state.value = SlicerState.Loading(filename)
+                _state.value = SlicerState.Loading("Loading $filename…")
 
                 rawInputFile = file
                 recoveryPlateId = -1

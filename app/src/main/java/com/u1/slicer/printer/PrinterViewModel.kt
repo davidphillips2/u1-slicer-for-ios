@@ -98,6 +98,14 @@ class PrinterViewModel(application: Application) : AndroidViewModel(application)
         printerRepo.startPolling(viewModelScope)
         // Resolve webcam URLs for the already-saved printer URL (if any)
         viewModelScope.launch(Dispatchers.IO) { resolveWebcam() }
+        // Auto-clear the "Print started!" banner once the printer confirms printing.
+        viewModelScope.launch {
+            status.collect { s ->
+                if (_sendingState.value is SendingState.PrintStarted && s.isPrinting) {
+                    _sendingState.value = SendingState.Idle
+                }
+            }
+        }
     }
 
     fun updateUrl(url: String) {
