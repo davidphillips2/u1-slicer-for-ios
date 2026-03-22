@@ -15,7 +15,10 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.FileOutputStream
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
+import java.util.zip.ZipOutputStream
 
 /**
  * Instrumented integration tests for ProfileEmbedder — the Kotlin port of the
@@ -340,6 +343,85 @@ class ProfileEmbedderIntegrationTest {
      * STL files have no sourceModelFile so the re-embed path is skipped,
      * but this verifies that a plain STL still slices after the B24 changes.
      */
+    /**
+     * Regression guard: plate-extracted 3MFs can contain both Slic3r_PE_model.config
+     * AND model_settings.config (synthesized by extractPlate). embed() must not crash
+     * with "duplicate entry: Metadata/model_settings.config" when both are present.
+     */
+    @Test
+    fun embed_bothSlic3rAndModelSettings_noDuplicateEntry() {
+        // Build a synthetic 3MF with both config entries (reproduces the crash scenario)
+        val synthetic = File(outDir, "both_configs.3mf")
+        val modelXml = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">
+              <resources>
+                <object id="1" type="model">
+                  <mesh>
+                    <vertices>
+                      <vertex x="0" y="0" z="0"/>
+                      <vertex x="10" y="0" z="0"/>
+                      <vertex x="5" y="10" z="0"/>
+                      <vertex x="5" y="5" z="10"/>
+                    </vertices>
+                    <triangles>
+                      <triangle v1="0" v2="1" v3="2"/>
+                      <triangle v1="0" v2="1" v3="3"/>
+                      <triangle v1="1" v2="2" v3="3"/>
+                      <triangle v1="0" v2="2" v3="3"/>
+                    </triangles>
+                  </mesh>
+                </object>
+              </resources>
+              <build><item objectid="1"/></build>
+            </model>
+        """.trimIndent()
+        val slic3rConfig = """
+            <config>
+              <object id="1">
+                <metadata type="object" key="extruder" value="1"/>
+                <volume firstid="0" lastid="3">
+                  <metadata type="volume" key="extruder" value="1"/>
+                </volume>
+              </object>
+            </config>
+        """.trimIndent()
+        val modelSettings = """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <config>
+              <object id="1">
+                <metadata key="extruder" value="1"/>
+              </object>
+            </config>
+        """.trimIndent()
+
+        ZipOutputStream(FileOutputStream(synthetic)).use { zip ->
+            zip.putNextEntry(ZipEntry("3D/3dmodel.model"))
+            zip.write(modelXml.toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("Metadata/Slic3r_PE_model.config"))
+            zip.write(slic3rConfig.toByteArray())
+            zip.closeEntry()
+            zip.putNextEntry(ZipEntry("Metadata/model_settings.config"))
+            zip.write(modelSettings.toByteArray())
+            zip.closeEntry()
+        }
+
+        val info = ThreeMfParser.parse(synthetic)
+        val config = embedder.buildConfig(info)
+
+        // This crashed before the fix with ZipException: duplicate entry
+        val embedded = embedder.embed(synthetic, config, outDir, info)
+        assertTrue("Embedded file should exist", embedded.exists())
+
+        // Verify only one model_settings.config entry in output
+        ZipFile(embedded).use { zip ->
+            val count = zip.entries().asSequence()
+                .count { it.name == "Metadata/model_settings.config" }
+            assertEquals("Must have exactly one model_settings.config", 1, count)
+        }
+    }
+
     @Test
     fun benchy_stl_slicesAfterClearAndReload() {
         val input = asset("3DBenchy.stl")

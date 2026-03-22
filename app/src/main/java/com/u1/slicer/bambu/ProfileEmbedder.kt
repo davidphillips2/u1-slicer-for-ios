@@ -459,6 +459,7 @@ class ProfileEmbedder(private val context: Context) {
 
         ZipFile(inputFile).use { srcZip ->
             ZipOutputStream(FileOutputStream(outputFile)).use { destZip ->
+                var wroteModelSettings = false
                 for (entry in srcZip.entries()) {
                     val name = entry.name
 
@@ -498,6 +499,7 @@ class ProfileEmbedder(private val context: Context) {
                             val content = srcZip.getInputStream(entry).readBytes()
                             val modelSettings = convertToModelSettings(content, extruderRemap)
                             writeStored(destZip, "Metadata/model_settings.config", modelSettings.toByteArray())
+                            wroteModelSettings = true
                             Log.i(TAG, "Converted Slic3r_PE_model.config → model_settings.config" +
                                     if (extruderRemap != null) " (remap=$extruderRemap)" else "")
                         }
@@ -506,15 +508,22 @@ class ProfileEmbedder(private val context: Context) {
                         // - Clear stale plater_name values (prevents OrcaSlicer segfault)
                         // - Clamp off-bed assemble_item transforms (Bambu multi-plate global coords)
                         // - Apply extruder remap if provided
+                        // - Skip if already written from Slic3r_PE_model.config conversion above
+                        //   (plate-extracted 3MFs can have both entries)
                         name == "Metadata/model_settings.config" -> {
-                            val content = srcZip.getInputStream(entry).readBytes()
-                            var sanitized = BambuSanitizer.sanitizeModelSettings(content)
-                            if (extruderRemap != null) {
-                                sanitized = remapModelSettingsExtruders(sanitized, extruderRemap)
+                            if (wroteModelSettings) {
+                                Log.i(TAG, "Skipping duplicate model_settings.config (already converted from Slic3r_PE_model.config)")
+                            } else {
+                                val content = srcZip.getInputStream(entry).readBytes()
+                                var sanitized = BambuSanitizer.sanitizeModelSettings(content)
+                                if (extruderRemap != null) {
+                                    sanitized = remapModelSettingsExtruders(sanitized, extruderRemap)
+                                }
+                                writeStored(destZip, name, sanitized)
+                                wroteModelSettings = true
+                                Log.i(TAG, "Sanitized model_settings.config" +
+                                        if (extruderRemap != null) " (remap=$extruderRemap)" else "")
                             }
-                            writeStored(destZip, name, sanitized)
-                            Log.i(TAG, "Sanitized model_settings.config" +
-                                    if (extruderRemap != null) " (remap=$extruderRemap)" else "")
                         }
 
                         // Pass through — raw-copy to avoid decompressing+recompressing
