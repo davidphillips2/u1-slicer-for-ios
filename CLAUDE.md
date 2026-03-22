@@ -49,13 +49,13 @@ Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep an
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 490 JVM unit tests
-./gradlew connectedDebugAndroidTest                # 118 instrumented tests (uses Orchestrator)
+./gradlew testDebugUnitTest                        # 500 JVM unit tests
+./gradlew connectedDebugAndroidTest                # 124 instrumented tests (uses Orchestrator)
 ```
 
 For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` if present.
 
-### Unit tests (`app/src/test/`) - 490 tests across 31 classes
+### Unit tests (`app/src/test/`) - 500 tests across 31 classes
 - `gcode/GcodeParserTest.kt` (26) — G-code parsing: layers, extrusion, extruder switching, ;TYPE: feature-type tagging, wipeTowerFilamentMm
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -87,7 +87,9 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - iewer/ModelRendererCameraTest.kt (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
 - iewer/ModelViewerViewTest.kt (3) — Prepare selection falls back from face-plane to bed-plane hit-testing when needed
 
-### Instrumented tests (`app/src/androidTest/`) - 118 tests across 13 classes
+- `ui/MakerWorldBrowserUtilsTest.kt` (10) — sanitizeFilename path traversal, hasAuthCookies heuristic
+
+### Instrumented tests (`app/src/androidTest/`) - 124 tests across 14 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
 - `data/SliceJobDaoTest.kt` (5) — Room DAO insert, ordering, delete
 - `data/GcodeSaveTruncationTest.kt` (2) — Save truncation regression
@@ -101,6 +103,7 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - `viewer/NativePreparePreviewTest.kt` (5) — native Prepare preview regressions: dual-colour, painted, old asset, selected multi-plate spread, Dragon plate 3 colour preservation
 - `viewer/ThreeMfMeshParserTest.kt` (4) - 3MF mesh parsing, transform resolution, per-triangle color extraction, calicube extruder indices
 - `PreparePreviewViewModelTest.kt` (2) — Dragon plate 3 end-to-end Prepare state and slice-output colour coverage
+- `ui/MakerWorldBrowserUtilsInstrumentedTest.kt` (6) — resolveDownloadFilename with URLUtil, RFC 5987, path traversal sanitization
 
 ## Backlog
 
