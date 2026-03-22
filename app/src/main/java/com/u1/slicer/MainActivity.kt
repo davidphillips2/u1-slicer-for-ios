@@ -57,7 +57,14 @@ class MainActivity : ComponentActivity() {
     private val filePickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let { viewModel.loadModel(it) }
+        uri?.let {
+            val name = viewModel.getFileDisplayName(it) ?: ""
+            if (name.isEmpty() || SlicerViewModel.isSupportedFile(name)) {
+                viewModel.loadModel(it)
+            } else {
+                viewModel.showUnsupportedFileError(name)
+            }
+        }
     }
 
     private val gcodeSaveLauncher = registerForActivityResult(
@@ -332,7 +339,8 @@ class MainActivity : ComponentActivity() {
                     "application/octet-stream",
                     "model/3mf",
                     "application/vnd.ms-3mfdocument",
-                    "model/obj"
+                    "model/obj",
+                    "*/*"  // fallback — Android file managers don't recognize model/* MIME types
                 )
 
                 U1NavGraph(

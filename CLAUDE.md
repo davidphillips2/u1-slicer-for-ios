@@ -49,13 +49,13 @@ Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep an
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 482 JVM unit tests
+./gradlew testDebugUnitTest                        # 490 JVM unit tests
 ./gradlew connectedDebugAndroidTest                # 118 instrumented tests (uses Orchestrator)
 ```
 
 For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` if present.
 
-### Unit tests (`app/src/test/`) - 482 tests across 30 classes
+### Unit tests (`app/src/test/`) - 490 tests across 31 classes
 - `gcode/GcodeParserTest.kt` (26) — G-code parsing: layers, extrusion, extruder switching, ;TYPE: feature-type tagging, wipeTowerFilamentMm
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -76,6 +76,7 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - `ui/FilamentJsonImportTest.kt` (15) — JSON import parsing: snake_case/camelCase, defaults, errors
 - `ui/MultiColorMappingTest.kt` (9) — ensureMultiSlotMapping collapse detection and sequential distribution
 - `ui/PrinterStatusBadgeTest.kt` (14) — Printer status badge text, color, and icon mapping for all printer states
+- `FilePickerValidationTest.kt` (8) — isSupportedFile extension matching for 3MF, STL, OBJ, STEP; rejects unsupported types
 - `model/CopyArrangeCalculatorTest.kt` (18) — Centered grid layout, bed bounds, copy capping, wipe tower auto-positioning, skirt clearance
 - `UpgradeDetectorTest.kt` (15) — APK upgrade detection logic, version/timestamp comparison, file clearing patterns
 - `DiagnosticsStoreTest.kt` (5) — Diagnostics event logging, JSONL output

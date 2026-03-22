@@ -1909,6 +1909,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /** Public accessor for file picker validation in MainActivity. */
+    fun getFileDisplayName(uri: Uri): String? =
+        getDisplayName(getApplication(), uri)
+
+    /** Show error for unsupported file type selected in the picker. */
+    fun showUnsupportedFileError(filename: String) {
+        val ext = filename.substringAfterLast('.', "")
+        _state.value = SlicerState.Error(
+            "Unsupported file type: .$ext\n\nPlease select a 3MF, STL, or OBJ file."
+        )
+    }
+
     private fun getDisplayName(context: android.content.Context, uri: Uri): String? {
         context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
@@ -1920,6 +1932,15 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     companion object {
+        /** File extensions accepted by the file picker. */
+        val SUPPORTED_EXTENSIONS = setOf("3mf", "stl", "obj", "step", "stp")
+
+        /** Returns true if the filename has a supported 3D model extension. */
+        fun isSupportedFile(filename: String): Boolean {
+            val ext = filename.substringAfterLast('.', "").lowercase()
+            return ext in SUPPORTED_EXTENSIONS
+        }
+
         /**
          * Merges a sanitized ThreeMfInfo (processedInfo) with the original parse (origInfo).
          *
