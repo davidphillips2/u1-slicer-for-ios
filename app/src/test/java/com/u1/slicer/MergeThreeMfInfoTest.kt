@@ -232,8 +232,10 @@ class MergeThreeMfInfoTest {
     }
 
     @Test
-    fun `shouldWarmReloadAfterUpgrade only triggers on first guarded model load`() {
-        assertTrue(
+    fun `shouldWarmReloadAfterUpgrade is disabled to prevent Clipper crashes`() {
+        // Warm reload after upgrade was causing Clipper overflow crashes (B31).
+        // All combinations should return false now.
+        assertFalse(
             SlicerViewModel.shouldWarmReloadAfterUpgrade(
                 sessionHasPostUpgradeGuard = true,
                 firstModelLoadThisLaunch = true

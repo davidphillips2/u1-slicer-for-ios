@@ -2105,10 +2105,14 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         internal fun shouldWarmReloadAfterUpgrade(
-            sessionHasPostUpgradeGuard: Boolean,
-            firstModelLoadThisLaunch: Boolean
+            @Suppress("UNUSED_PARAMETER") sessionHasPostUpgradeGuard: Boolean,
+            @Suppress("UNUSED_PARAMETER") firstModelLoadThisLaunch: Boolean
         ): Boolean {
-            return sessionHasPostUpgradeGuard && firstModelLoadThisLaunch
+            // Disabled: the warm reload after APK upgrade was causing Clipper overflow
+            // crashes (B31). The native engine gets into a bad state when clearModel() +
+            // loadModel() runs during the post-upgrade guard phase. Simply loading the
+            // model normally (without the extra clear/reload cycle) is stable.
+            return false
         }
 
         internal fun buildPreviewSlotColors(
