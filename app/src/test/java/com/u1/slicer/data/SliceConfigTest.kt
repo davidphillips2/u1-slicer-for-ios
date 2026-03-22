@@ -167,4 +167,49 @@ class SliceConfigTest {
         assertEquals(3, copy.extruderCount)
         assertTrue(copy.wipeTowerEnabled)
     }
+
+    // --- Wipe tower bounds clamping (mirrors logic in SlicerViewModel.startSlicing) ---
+
+    private fun clampWipeTower(cfg: SliceConfig): SliceConfig {
+        if (!cfg.wipeTowerEnabled) return cfg
+        val maxX = (cfg.bedSizeX - cfg.wipeTowerWidth).coerceAtLeast(0f)
+        val maxY = (cfg.bedSizeY - cfg.wipeTowerWidth).coerceAtLeast(0f)
+        return cfg.copy(
+            wipeTowerX = cfg.wipeTowerX.coerceIn(0f, maxX),
+            wipeTowerY = cfg.wipeTowerY.coerceIn(0f, maxY)
+        )
+    }
+
+    @Test
+    fun `wipe tower at x=230 with width 60 is clamped to fit 270mm bed`() {
+        // Regression: wipeTowerX=230 + width=60 = 290 > bed 270 → Clipper overflow
+        val config = SliceConfig(wipeTowerEnabled = true, wipeTowerX = 230f, wipeTowerY = 10f, wipeTowerWidth = 60f)
+        val clamped = clampWipeTower(config)
+        assertEquals(210f, clamped.wipeTowerX, 0.001f)  // 270 - 60 = 210
+        assertEquals(10f, clamped.wipeTowerY, 0.001f)   // unchanged, within bounds
+        assertTrue(clamped.wipeTowerX + clamped.wipeTowerWidth <= clamped.bedSizeX)
+    }
+
+    @Test
+    fun `wipe tower within bounds is not modified`() {
+        val config = SliceConfig(wipeTowerEnabled = true, wipeTowerX = 170f, wipeTowerY = 140f, wipeTowerWidth = 60f)
+        val clamped = clampWipeTower(config)
+        assertEquals(170f, clamped.wipeTowerX, 0.001f)
+        assertEquals(140f, clamped.wipeTowerY, 0.001f)
+    }
+
+    @Test
+    fun `wipe tower negative position is clamped to zero`() {
+        val config = SliceConfig(wipeTowerEnabled = true, wipeTowerX = -5f, wipeTowerY = -10f, wipeTowerWidth = 60f)
+        val clamped = clampWipeTower(config)
+        assertEquals(0f, clamped.wipeTowerX, 0.001f)
+        assertEquals(0f, clamped.wipeTowerY, 0.001f)
+    }
+
+    @Test
+    fun `wipe tower disabled is not clamped`() {
+        val config = SliceConfig(wipeTowerEnabled = false, wipeTowerX = 999f, wipeTowerY = 999f)
+        val clamped = clampWipeTower(config)
+        assertEquals(999f, clamped.wipeTowerX, 0.001f)  // unchanged
+    }
 }

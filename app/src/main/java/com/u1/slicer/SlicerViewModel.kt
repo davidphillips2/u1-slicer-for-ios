@@ -1142,6 +1142,12 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 mapOf("staleMarker" to staleMarker)
             )
         }
+        // If this session was launched by clipper recovery restart, suppress further
+        // auto-restarts to prevent crash loops (error → restart → same error → restart).
+        if (diagnostics.consumeClipperRecoveryPending()) {
+            clipperRetryAttempted = true
+            Log.i("SlicerVM", "Previous session was clipper recovery — suppressing further auto-restarts")
+        }
         try {
             native.configureDiagnostics(diagnostics.diagnosticsPath())
             diagnostics.recordNativeConfigured(native.getDiagnosticsState())
@@ -1401,7 +1407,20 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 // USE_FILE passthrough: base values from _config.value are used as-is.
                 // We use a local copy — _config.value (the UI state) is never mutated here.
                 val ov = slicingOverrides.value
-                val sliceConfig = ov.resolveInto(_config.value)
+                val sliceConfig = ov.resolveInto(_config.value).let { cfg ->
+                    // Clamp wipe tower to bed bounds — an out-of-bounds tower can produce
+                    // degenerate geometry that overflows Clipper2's int64 coordinate range.
+                    if (cfg.wipeTowerEnabled) {
+                        val maxX = (cfg.bedSizeX - cfg.wipeTowerWidth).coerceAtLeast(0f)
+                        val maxY = (cfg.bedSizeY - cfg.wipeTowerWidth).coerceAtLeast(0f)
+                        val clampedX = cfg.wipeTowerX.coerceIn(0f, maxX)
+                        val clampedY = cfg.wipeTowerY.coerceIn(0f, maxY)
+                        if (clampedX != cfg.wipeTowerX || clampedY != cfg.wipeTowerY) {
+                            Log.w("SlicerVM", "Clamped wipe tower from (${cfg.wipeTowerX},${cfg.wipeTowerY}) to ($clampedX,$clampedY) — was outside bed bounds")
+                        }
+                        cfg.copy(wipeTowerX = clampedX, wipeTowerY = clampedY)
+                    } else cfg
+                }
                 val profileOverrides = buildProfileOverrides(
                     sliceConfig,
                     sliceConfig.extruderCount,
@@ -1588,6 +1607,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         // produce identical failures. A process restart (SIGKILL + AlarmManager relaunch)
         // gives fresh JNI_OnLoad with clean state, which fixes the issue.
         Log.w("SlicerVM", "Clipper error: restarting app for fresh native state")
+        diagnostics.markClipperRecoveryPending()
         diagnostics.recordEvent(
             "clipper_recovery_restart",
             mapOf(

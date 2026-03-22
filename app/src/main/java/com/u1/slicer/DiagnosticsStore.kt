@@ -22,6 +22,7 @@ class DiagnosticsStore(private val context: Context) {
         private const val PREFS_NAME = "clipper_diagnostics"
         private const val KEY_PENDING_RESTART = "pending_restart"
         private const val KEY_SLICE_IN_PROGRESS = "slice_in_progress"
+        private const val KEY_CLIPPER_RECOVERY_PENDING = "clipper_recovery_pending"
         private const val MAX_HISTORY_LINES = 200
 
         @Volatile
@@ -153,6 +154,25 @@ class DiagnosticsStore(private val context: Context) {
         val marker = prefs.getString(KEY_SLICE_IN_PROGRESS, null) ?: return null
         prefs.edit().remove(KEY_SLICE_IN_PROGRESS).apply()
         return marker
+    }
+
+    /**
+     * Persist a flag indicating that a clipper recovery restart is in progress.
+     * Survives process kill so the relaunched session knows not to auto-restart again
+     * for the same error (prevents crash-loop: error → restart → same error → restart).
+     */
+    fun markClipperRecoveryPending() {
+        prefs.edit().putBoolean(KEY_CLIPPER_RECOVERY_PENDING, true).commit()
+    }
+
+    /**
+     * Check and consume the clipper recovery flag. Returns true if the previous session
+     * was killed for clipper recovery, meaning we should NOT auto-restart again.
+     */
+    fun consumeClipperRecoveryPending(): Boolean {
+        val pending = prefs.getBoolean(KEY_CLIPPER_RECOVERY_PENDING, false)
+        if (pending) prefs.edit().remove(KEY_CLIPPER_RECOVERY_PENDING).apply()
+        return pending
     }
 
     @Synchronized
