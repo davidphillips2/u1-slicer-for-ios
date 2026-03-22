@@ -1,5 +1,6 @@
 package com.u1.slicer.data
 
+import com.u1.slicer.SlicerViewModel
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -243,5 +244,13 @@ class SettingsBackupTest {
         assertNull(data.makerWorldCookies)
         // cookiesEnabled should still be present (defaults to false)
         assertEquals(false, data.makerWorldCookiesEnabled)
+    }
+
+    @Test
+    fun `normalizeImportedSliceConfig clears stale skirt loops from backup`() {
+        val imported = SliceConfig(skirtLoops = 1, brimWidth = 0f)
+        val normalized = SlicerViewModel.normalizeImportedSliceConfig(imported)
+        assertEquals(0, normalized.skirtLoops)
+        assertEquals(0f, normalized.brimWidth, 0.001f)
     }
 }

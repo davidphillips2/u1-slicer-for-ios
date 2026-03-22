@@ -49,13 +49,13 @@ Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep an
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 500 JVM unit tests
-./gradlew connectedDebugAndroidTest                # 124 instrumented tests (uses Orchestrator)
+./gradlew testDebugUnitTest                        # 515 JVM unit tests
+./gradlew connectedDebugAndroidTest                # 125 instrumented tests (uses Orchestrator)
 ```
 
 For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` if present.
 
-### Unit tests (`app/src/test/`) - 500 tests across 31 classes
+### Unit tests (`app/src/test/`) - 515 tests across 31 classes
 - `gcode/GcodeParserTest.kt` (26) — G-code parsing: layers, extrusion, extruder switching, ;TYPE: feature-type tagging, wipeTowerFilamentMm
 - `gcode/GcodeValidatorTest.kt` (41) — Tool changes, nozzle temps, layer count, prime tower footprint, bed bounds validation
 - `gcode/GcodeToolRemapperTest.kt` (19) — Compact tool index remapping, SM_ params, M104/M109
@@ -67,8 +67,8 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - `data/SliceConfigTest.kt` (25) — Default values match Snapmaker U1 hardware specs, wipe tower bounds clamping
 - `data/DataClassesTest.kt` (17) — FilamentProfile, SliceJob, GcodeMove, ModelInfo, WipeTowerInfo
 - `data/PlateTypeTest.kt` (21) — PlateType.bedTempFor per-material presets, fromName, case-insensitivity
-- `data/SlicingOverridesTest.kt` (53) — Override modes, JSON serialization round-trip, defaults, resolveInto(), multi-extruder wipe tower, B24 stale config, B31 brim_type, F30/F31 new override fields
-- `data/SettingsBackupTest.kt` (15) — Export/import round-trip, version validation, partial restore, filament profile name resolution
+- `data/SlicingOverridesTest.kt` (67) — Override modes, JSON serialization round-trip, defaults, resolveInto(), multi-extruder wipe tower, B24 stale config, B31 brim_type, F30/F31 plus F41/F42/F43 override/file-value coverage
+- `data/SettingsBackupTest.kt` (16) — Export/import round-trip, version validation, partial restore, filament profile name resolution, stale skirt-loop import normalization
 - `bambu/ThreeMfParserTest.kt` (7) - 3MF data model construction, isMultiPlate detection
 - `bambu/BambuSanitizerTest.kt` (22) — INI config parsing, nil replacement, array normalization, filterModelToPlate, component size guard
 - `bambu/ProfileEmbedderTest.kt` (5) — convertToModelSettings: per-volume extruder preservation, remap, attribute order
@@ -89,7 +89,7 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 
 - `ui/MakerWorldBrowserUtilsTest.kt` (10) — sanitizeFilename path traversal, hasAuthCookies heuristic
 
-### Instrumented tests (`app/src/androidTest/`) - 124 tests across 14 classes
+### Instrumented tests (`app/src/androidTest/`) - 125 tests across 14 classes
 - `data/FilamentDaoTest.kt` (9) — Room DAO CRUD, ordering, count
 - `data/SliceJobDaoTest.kt` (5) — Room DAO insert, ordering, delete
 - `data/GcodeSaveTruncationTest.kt` (2) — Save truncation regression
@@ -122,6 +122,7 @@ Open bugs and features are in [`BACKLOG.md`](BACKLOG.md). Do not implement backl
 
 - Kotlin 1.9.22, compileSdk 34, minSdk 26, JVM 17
 - Do NOT add fields to ModelInfo/SliceConfig without rebuilding the native `.so` — JNI signatures must match
+- If native source changes are needed for new functionality or correct runtime fallback behavior, it is always OK to rebuild the native `.so`; don't leave required C++ changes source-only
 - OrcaSlicer config key names differ from PrusaSlicer: `wall_loops`, `sparse_infill_density`, `enable_prime_tower`, `initial_layer_print_height`, etc.
 - Add unit tests for every new parsing/logic function
 - `org.json` is Android API — add `testImplementation 'org.json:json:20231013'` for JVM tests that use it
@@ -153,6 +154,8 @@ Settings reach OrcaSlicer's native engine through **two paths** — a setting th
 4. Add the key name to `profile_keys[]` so the embedded profile can override the fallback
 5. If the setting should be user-controllable, add it to `buildProfileOverrides()` in `SlicerViewModel.kt`
 6. **Rebuild the native `.so`** (use `ninja -j1` to avoid OOM, strip with `llvm-strip`, copy to `jniLibs/`)
+
+For clarity: rebuilding the native library is not something to avoid on principle. If a feature depends on C++ changes, rebuild it so the shipped app actually gets the functionality.
 
 ## Native Rebuild
 

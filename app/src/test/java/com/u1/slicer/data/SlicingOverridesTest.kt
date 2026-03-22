@@ -1,6 +1,7 @@
 package com.u1.slicer.data
 
 import com.u1.slicer.buildProfileOverridesImpl
+import com.u1.slicer.ui.formatFileValue
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -13,6 +14,9 @@ class SlicingOverridesTest {
         assertEquals(OverrideMode.USE_FILE, overrides.infillDensity.mode)
         assertEquals(OverrideMode.USE_FILE, overrides.wallCount.mode)
         assertEquals(OverrideMode.USE_FILE, overrides.infillPattern.mode)
+        assertEquals(OverrideMode.USE_FILE, overrides.reduceInfillRetraction.mode)
+        assertEquals(OverrideMode.USE_FILE, overrides.wallGenerator.mode)
+        assertEquals(OverrideMode.USE_FILE, overrides.seamPosition.mode)
         assertEquals(OverrideMode.USE_FILE, overrides.supports.mode)
         assertEquals(OverrideMode.USE_FILE, overrides.brimWidth.mode)
         assertEquals(OverrideMode.USE_FILE, overrides.skirtLoops.mode)
@@ -123,6 +127,9 @@ class SlicingOverridesTest {
         assertEquals(0.15f, defaults["infillDensity"])
         assertEquals(2, defaults["wallCount"])
         assertEquals("gyroid", defaults["infillPattern"])
+        assertEquals(false, defaults["reduceInfillRetraction"])
+        assertEquals("arachne", defaults["wallGenerator"])
+        assertEquals("aligned", defaults["seamPosition"])
         assertEquals(false, defaults["supports"])
         assertEquals(0f, defaults["brimWidth"])
         assertEquals(0, defaults["skirtLoops"])
@@ -697,5 +704,114 @@ class SlicingOverridesTest {
         )
         val result = buildProfileOverridesImpl(cfg, ov, extCount = 1, hasSourceConfig = false)
         assertFalse("tree params must not appear for normal support", result.containsKey("tree_support_branch_angle"))
+    }
+
+    @Test
+    fun `F41 F42 serialization round-trip for new override fields`() {
+        val original = SlicingOverrides(
+            reduceInfillRetraction = OverrideValue(OverrideMode.OVERRIDE, true),
+            wallGenerator = OverrideValue(OverrideMode.OVERRIDE, "classic"),
+            seamPosition = OverrideValue(OverrideMode.OVERRIDE, "back")
+        )
+        val restored = SlicingOverrides.fromJson(original.toJson())
+        assertEquals(OverrideMode.OVERRIDE, restored.reduceInfillRetraction.mode)
+        assertTrue(restored.reduceInfillRetraction.value!!)
+        assertEquals(OverrideMode.OVERRIDE, restored.wallGenerator.mode)
+        assertEquals("classic", restored.wallGenerator.value)
+        assertEquals(OverrideMode.OVERRIDE, restored.seamPosition.mode)
+        assertEquals("back", restored.seamPosition.value)
+    }
+
+    @Test
+    fun `F41 F42 buildProfileOverrides emits new keys`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            reduceInfillRetraction = OverrideValue(OverrideMode.OVERRIDE, true),
+            wallGenerator = OverrideValue(OverrideMode.OVERRIDE, "classic"),
+            seamPosition = OverrideValue(OverrideMode.OVERRIDE, "back")
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, 1)
+        assertEquals("1", result["reduce_infill_retraction"])
+        assertEquals("classic", result["wall_generator"])
+        assertEquals("back", result["seam_position"])
+    }
+
+    @Test
+    fun `F41 reduceInfillRetraction defaults to false (0)`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            reduceInfillRetraction = OverrideValue(OverrideMode.ORCA_DEFAULT)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, 1)
+        assertEquals("0", result["reduce_infill_retraction"])
+    }
+
+    @Test
+    fun `F42 wallGenerator defaults to arachne`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            wallGenerator = OverrideValue(OverrideMode.ORCA_DEFAULT)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, 1)
+        assertEquals("arachne", result["wall_generator"])
+    }
+
+    @Test
+    fun `F42 seamPosition defaults to aligned`() {
+        val cfg = SliceConfig()
+        val ov = SlicingOverrides(
+            seamPosition = OverrideValue(OverrideMode.ORCA_DEFAULT)
+        )
+        val result = buildProfileOverridesImpl(cfg, ov, 1)
+        assertEquals("aligned", result["seam_position"])
+    }
+
+    @Test
+    fun `formatFileValue boolean true shows on`() {
+        assertEquals("on", formatFileValue(true))
+    }
+
+    @Test
+    fun `formatFileValue boolean false shows off`() {
+        assertEquals("off", formatFileValue(false))
+    }
+
+    @Test
+    fun `formatFileValue string 1 shows on`() {
+        assertEquals("on", formatFileValue("1"))
+    }
+
+    @Test
+    fun `formatFileValue string 0 shows off`() {
+        assertEquals("off", formatFileValue("0"))
+    }
+
+    @Test
+    fun `formatFileValue percentage passes through`() {
+        assertEquals("15%", formatFileValue("15%"))
+    }
+
+    @Test
+    fun `formatFileValue enum with parens strips parens`() {
+        assertEquals("Normal", formatFileValue("normal(auto)"))
+    }
+
+    @Test
+    fun `formatFileValue underscore enum title-cases`() {
+        assertEquals("Aligned Back", formatFileValue("aligned_back"))
+        assertEquals("Arachne", formatFileValue("arachne"))
+        assertEquals("Gyroid", formatFileValue("gyroid"))
+    }
+
+    @Test
+    fun `formatFileValue number passes through`() {
+        assertEquals("0.2", formatFileValue(0.2f))
+        assertEquals("30", formatFileValue(30))
+    }
+
+    @Test
+    fun `formatFileValue list takes first element`() {
+        assertEquals("on", formatFileValue(listOf("1", "1")))
+        assertEquals("60", formatFileValue(listOf(60, 60)))
     }
 }

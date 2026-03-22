@@ -6,7 +6,7 @@ Native Android slicer for the **Snapmaker U1** 3D printer (270×270×270mm, 4 ex
 
 Built with Kotlin, Jetpack Compose, and OrcaSlicer's C++ engine via JNI — no server required, everything runs on-device.
 
-Current release: `v1.4.21` (`versionCode 110`)
+Current release: `v1.4.26` (`versionCode 115`)
 
 ## Security
 
@@ -68,11 +68,11 @@ The native `.so` is pre-built and committed to `app/src/main/jniLibs/arm64-v8a/`
 ## Testing
 
 ```bash
-./gradlew testDebugUnitTest              # 490 JVM unit tests
-./gradlew connectedDebugAndroidTest      # 118 instrumented tests (ARM64 device required)
+./gradlew testDebugUnitTest              # 515 JVM unit tests
+./gradlew connectedDebugAndroidTest      # 125 instrumented tests (ARM64 device required)
 ```
 
-**582 total tests** covering G-code parsing/validation, feature-type tagging, 3MF sanitization, STL parsing, slicing integration, profile embedding, Room DAOs, placement layout, and more.
+**640 total tests** covering G-code parsing/validation, feature-type tagging, 3MF sanitization, STL parsing, slicing integration, profile embedding, Room DAOs, placement layout, and more.
 
 Instrumented tests use [Android Test Orchestrator](https://developer.android.com/training/testing/instrumented-tests/androidx-test-libraries/runner#use-android) to run each test in its own process — prevents native memory accumulation across slicing tests.
 
@@ -90,7 +90,7 @@ Instrumented tests use [Android Test Orchestrator](https://developer.android.com
 
 ## Native Rebuild
 
-To rebuild the native library from source (requires NDK 26.1):
+To rebuild the native library from source (requires NDK 25.1+):
 
 1. Uncomment `externalNativeBuild` blocks in `app/build.gradle`
 2. Run `./gradlew assembleDebug` to configure CMake
@@ -100,6 +100,8 @@ To rebuild the native library from source (requires NDK 26.1):
 6. `./gradlew clean installDebug`
 
 Use `-j1` — higher parallelism OOMs on most machines.
+
+If new functionality depends on native C++ changes, it is OK to rebuild the native `.so` and ship the refreshed binary. Don't leave required native changes source-only.
 
 ## Credits
 

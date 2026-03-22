@@ -41,21 +41,6 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Open Features
 
-### F41: Reduce Infill Retraction toggle (GitHub #10)
-- Add a toggle for `reduce_infill_retraction` in slice settings
-- Should default to off (unchecked) to reduce print failures from limited retraction between movements
-- Needs addition to `SlicingOverrides`, `profile_keys[]`, and `applyConfigToPrusa()`
-
-### F42: Wall type and seam position settings (GitHub #11)
-- Add wall generator dropdown (Classic / Arachne) — Arachne is better for organic shapes
-- Add seam position dropdown (Nearest / Aligned / Random / Back etc.)
-- Keys: `wall_generator`, `seam_position`
-- Needs addition to `SlicingOverrides`, `profile_keys[]`, and `applyConfigToPrusa()`
-
-### F43: Show embedded 3MF settings in Prepare (GitHub #12)
-- Display the slicer settings embedded in the loaded 3MF on the Prepare screen
-- Lets users see what config (infill pattern, speeds, etc.) came with the file before slicing
-
 ### F44: Push notifications for print progress (GitHub #13)
 - Show Android notifications with print progress percentage
 - Persistent notification in notification panel during active prints
@@ -75,6 +60,8 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **Backup import skirt regression**: importing an older settings backup could restore stale `skirtLoops=1` into the live in-memory config for the current session, causing unexpected skirts despite the repository default being forced to 0; imports are now normalized and covered by a regression test — FIXED v1.4.26
+- **F41/F42/F43**: Added Reduce Infill Retraction toggle, Wall Generator + Seam Position overrides, native fallback/profile-key support, and inline embedded 3MF file values on Prepare override rows via `sourceConfig` threading — DONE v1.4.26
 - **F40**: MakerWorld in-app browser — browse, log in via Bambu SSO, download 3MF/STL directly into slicer; auth cookies silently extracted for share-URL pipeline; cookie info dialog + file import as fallback — DONE v1.4.23
 - **B36**: MakerWorld download/loading text was confusing ("Loading Downloading from MakerWorld……") — each state now provides complete display message — FIXED v1.4.22
 - **F37**: File picker accepted any file — now validates extension after selection and rejects unsupported types with a clear error message (`*/*` kept in MIME types since Android file managers don't recognize `model/*`) — DONE v1.4.22

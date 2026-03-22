@@ -553,6 +553,7 @@ fun PrepareScreen(
     val copyCount by viewModel.copyCount.collectAsState()
     val modelScale by viewModel.modelScale.collectAsState()
     val extruderColors by viewModel.activeExtruderColors.collectAsState()
+    val sourceConfig by viewModel.sourceConfig.collectAsState()
     var captureViewer by remember { mutableStateOf<com.u1.slicer.viewer.ModelViewerView?>(null) }
 
     // Plate selector dialog
@@ -765,7 +766,8 @@ fun PrepareScreen(
                             plateType = plateType,
                             onPlateTypeChange = { viewModel.setPlateType(it) },
                             bedTemp = config.bedTemp,
-                            onBedTempChange = { viewModel.setBedTemp(it) }
+                            onBedTempChange = { viewModel.setBedTemp(it) },
+                            sourceConfig = sourceConfig
                         )
                     }
                 }
@@ -1141,7 +1143,8 @@ fun ConfigCard(
     plateType: com.u1.slicer.data.PlateType? = null,
     onPlateTypeChange: ((com.u1.slicer.data.PlateType) -> Unit)? = null,
     bedTemp: Int? = null,
-    onBedTempChange: ((Int) -> Unit)? = null
+    onBedTempChange: ((Int) -> Unit)? = null,
+    sourceConfig: Map<String, Any>? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1177,7 +1180,8 @@ fun ConfigCard(
                     plateType = plateType,
                     onPlateTypeChange = onPlateTypeChange,
                     bedTemp = bedTemp,
-                    onBedTempChange = onBedTempChange
+                    onBedTempChange = onBedTempChange,
+                    sourceConfig = sourceConfig
                 )
             }
 

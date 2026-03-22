@@ -290,6 +290,17 @@ static void applyConfigToPrusa(Slic3r::DynamicPrintConfig& dpc, const SliceConfi
     dpc.set_key_value("sparse_infill_line_width",new Slic3r::ConfigOptionFloatOrPercent(nd * 1.125, false));
     dpc.set_key_value("initial_layer_line_width",new Slic3r::ConfigOptionFloatOrPercent(nd * 1.25,  false));
 
+    // Wall generator - Arachne (variable-width perimeters) is the OrcaSlicer default
+    // and works better for organic geometry. Set explicitly as fallback for STL files.
+    dpc.set_key_value("wall_generator", new Slic3r::ConfigOptionEnum<Slic3r::PerimeterGeneratorType>(Slic3r::PerimeterGeneratorType::Arachne));
+
+    // Seam position - aligned is the default; set explicitly for STL files.
+    dpc.set_key_value("seam_position", new Slic3r::ConfigOptionEnum<Slic3r::SeamPosition>(Slic3r::spAligned));
+
+    // Reduce infill retraction - off by default for Snapmaker U1. When on, OrcaSlicer
+    // limits retraction between infill moves, which can cause failed prints.
+    dpc.set_key_value("reduce_infill_retraction", new Slic3r::ConfigOptionBool(false));
+
     // Support speeds — OrcaSlicer defaults to 80mm/s which is fine today, but pin to
     // Snapmaker profile values so future OrcaSlicer changes don't silently regress.
     dpc.set_key_value("support_speed", new Slic3r::ConfigOptionFloat(100.0));
@@ -496,6 +507,10 @@ SliceResult SlicerEngine::slice(const SliceConfig& config, ProgressCallback prog
                     "bottom_shell_layers",
                     "sparse_infill_density",
                     "sparse_infill_pattern",
+                    // Wall generator type (classic vs arachne variable-width)
+                    "wall_generator",
+                    // Retraction reduction for infill moves
+                    "reduce_infill_retraction",
                     // Line widths (from embedded profile)
                     "line_width",
                     "outer_wall_line_width",

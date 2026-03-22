@@ -188,7 +188,8 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     // Original Bambu file's project_settings.config, parsed before process() strips it.
     // Used by embedProfile() so the file's own settings (enable_support, etc.) survive
     // through the sanitize→embed→extractPlate→restructure→re-embed pipeline.
-    private var originalSourceConfig: Map<String, Any>? = null
+    private val _sourceConfig = MutableStateFlow<Map<String, Any>?>(null)
+    val sourceConfig: StateFlow<Map<String, Any>?> = _sourceConfig.asStateFlow()
 
     // Recovery fields — track the pre-sanitize raw input so attemptClipperRecovery() can
     // re-run the full pipeline after clearing intermediate files.  rawInputFile is NOT an
@@ -218,7 +219,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         sourceModelFile = sourceModelFile,
         currentModelFile = currentModelFile,
         info = _threeMfInfo.value,
-        originalSourceConfig = originalSourceConfig
+        originalSourceConfig = _sourceConfig.value
     )?.absolutePath
 
     init {
@@ -440,7 +441,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 // Same pipeline as loadModel(): parse → sanitize → embed → load
                 val origInfo = ThreeMfParser.parse(outputFile)
                 recoveryOrigInfo = origInfo  // Saved for Clipper recovery pipeline
-                originalSourceConfig = if (origInfo.isBambu) {
+                _sourceConfig.value = if (origInfo.isBambu) {
                     java.util.zip.ZipFile(outputFile).use { profileEmbedder.parseSourceConfig(it) }
                 } else null
 
@@ -541,7 +542,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
                     // Parse original file's config BEFORE process() strips it.
                     // This preserves file-level settings (enable_support, etc.) through the pipeline.
-                    originalSourceConfig = if (origInfo.isBambu) {
+                    _sourceConfig.value = if (origInfo.isBambu) {
                         java.util.zip.ZipFile(file).use { profileEmbedder.parseSourceConfig(it) }
                     } else null
 
@@ -583,7 +584,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     // pointing at the old 3MF, causing the wrong model to appear in the viewer.
                     sourceModelFile = null
                     sourceModelInfo = null
-                    originalSourceConfig = null
+                    _sourceConfig.value = null
                     file
                 }
 
@@ -688,7 +689,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                         "colors=${origInfo.detectedColors.size}, extruders=${origInfo.detectedExtruderCount}, " +
                         "paint=${origInfo.hasPaintData}, toolChanges=${origInfo.hasLayerToolChanges}")
 
-                    originalSourceConfig = if (origInfo.isBambu) {
+                    _sourceConfig.value = if (origInfo.isBambu) {
                         java.util.zip.ZipFile(file).use { profileEmbedder.parseSourceConfig(it) }
                     } else null
 
@@ -716,7 +717,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     recoveryOrigInfo = null
                     sourceModelFile = null
                     sourceModelInfo = null
-                    originalSourceConfig = null
+                    _sourceConfig.value = null
                     file
                 }
 
@@ -1137,7 +1138,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         val extruderRemap = buildCompactExtruderRemap(info, colorMapping)
         // Use the original file's config (parsed before process() strips it) when available.
         // Falls back to parsing from the current file for non-Bambu or when original is unavailable.
-        val sourceConfig = originalSourceConfig ?: if (info.isBambu) {
+        val sourceConfig = _sourceConfig.value ?: if (info.isBambu) {
             java.util.zip.ZipFile(file).use { profileEmbedder.parseSourceConfig(it) }
         } else null
         Log.d("SlicerVM", "embedProfile: info.isBambu=${info.isBambu}, info.detectedExtruders=${info.detectedExtruderCount}, " +
@@ -1465,7 +1466,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     sliceConfig,
                     sliceConfig.extruderCount,
                     toolRemapSlots,
-                    hasSourceConfig = originalSourceConfig != null
+                    hasSourceConfig = _sourceConfig.value != null
                 )
                 diagnostics.recordEvent(
                     "slice_started",
@@ -1811,8 +1812,9 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             try {
                 val data = SettingsBackup.import(json)
                 data.sliceConfig?.let {
-                    _config.value = it
-                    settingsRepo.saveSliceConfig(it)
+                    val normalized = normalizeImportedSliceConfig(it)
+                    _config.value = normalized
+                    settingsRepo.saveSliceConfig(normalized)
                 }
                 data.slicingOverrides?.let {
                     settingsRepo.saveSlicingOverrides(it)
@@ -1972,6 +1974,12 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     companion object {
+        internal fun normalizeImportedSliceConfig(config: SliceConfig): SliceConfig {
+            // Older backups can carry skirt_loops=1 from before the Snapmaker U1
+            // default was corrected to 0. Keep imports aligned with SettingsRepository.
+            return config.copy(skirtLoops = 0)
+        }
+
         /** File extensions accepted by the file picker. */
         val SUPPORTED_EXTENSIONS = setOf("3mf", "stl", "obj", "step", "stp")
 
@@ -2206,6 +2214,9 @@ internal fun buildProfileOverridesImpl(
     val topSurfacePattern = resolve(ov.topSurfacePattern, "monotonic", "topSurfacePattern")
     val bottomSurfacePattern = resolve(ov.bottomSurfacePattern, "monotonic", "bottomSurfacePattern")
     val sparseInfillSpeed = resolve(ov.sparseInfillSpeed, 0, "sparseInfillSpeed")
+    val reduceInfillRetraction = resolve(ov.reduceInfillRetraction, false, "reduceInfillRetraction")
+    val wallGenerator = resolve(ov.wallGenerator, "arachne", "wallGenerator")
+    val seamPosition = resolve(ov.seamPosition, "aligned", "seamPosition")
     val supportEnabled = resolve(ov.supports, cfg.supportEnabled, "supports")
     val supportType = resolve(ov.supportType, cfg.supportType, "supportType")
     val supportAngle = resolve(ov.supportAngle, cfg.supportAngle.toInt(), "supportAngle")
@@ -2243,6 +2254,9 @@ internal fun buildProfileOverridesImpl(
         "bottom_surface_pattern" to bottomSurfacePattern,
         "sparse_infill_density" to "${(infillDensity * 100).toInt()}%",
         "sparse_infill_pattern" to infillPattern,
+        "reduce_infill_retraction" to if (reduceInfillRetraction) "1" else "0",
+        "wall_generator" to wallGenerator,
+        "seam_position" to seamPosition,
         "travel_speed" to cfg.travelSpeed.toString(),
         "nozzle_temperature" to temps,
         "nozzle_temperature_initial_layer" to temps.toMutableList(),

@@ -39,7 +39,8 @@ fun SlicingOverridesAccordion(
     plateType: PlateType? = null,
     onPlateTypeChange: ((PlateType) -> Unit)? = null,
     bedTemp: Int? = null,
-    onBedTempChange: ((Int) -> Unit)? = null
+    onBedTempChange: ((Int) -> Unit)? = null,
+    sourceConfig: Map<String, Any>? = null
 ) {
     var expandedSection by remember { mutableStateOf<String?>(defaultExpandedSection) }
 
@@ -54,6 +55,8 @@ fun SlicingOverridesAccordion(
             override = overrides.layerHeight,
             defaultHint = "0.2 mm",
             onModeChange = { mode -> onOverridesChange(overrides.copy(layerHeight = overrides.layerHeight.copy(mode = mode))) },
+            fileKey = "layer_height",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideFloatField(
                     value = overrides.layerHeight.value ?: 0.2f,
@@ -68,6 +71,8 @@ fun SlicingOverridesAccordion(
             override = overrides.infillDensity,
             defaultHint = "15%",
             onModeChange = { mode -> onOverridesChange(overrides.copy(infillDensity = overrides.infillDensity.copy(mode = mode))) },
+            fileKey = "sparse_infill_density",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideFloatField(
                     value = (overrides.infillDensity.value ?: 0.15f) * 100f,
@@ -82,10 +87,54 @@ fun SlicingOverridesAccordion(
             override = overrides.wallCount,
             defaultHint = "2",
             onModeChange = { mode -> onOverridesChange(overrides.copy(wallCount = overrides.wallCount.copy(mode = mode))) },
+            fileKey = "wall_loops",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.wallCount.value ?: 2,
                     onValueChange = { onOverridesChange(overrides.copy(wallCount = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                )
+            }
+        )
+
+        val wallGenerators = listOf("classic" to "Classic", "arachne" to "Arachne")
+        OverrideRow(
+            label = "Wall Generator",
+            override = overrides.wallGenerator,
+            defaultHint = "Arachne",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(wallGenerator = overrides.wallGenerator.copy(mode = mode))) },
+            fileKey = "wall_generator",
+            sourceConfig = sourceConfig,
+            valueContent = {
+                OverrideDropdown(
+                    value = overrides.wallGenerator.value ?: "arachne",
+                    options = wallGenerators.map { it.first },
+                    labels = wallGenerators.map { it.second },
+                    onValueChange = { onOverridesChange(overrides.copy(wallGenerator = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                )
+            }
+        )
+
+        val seamPositions = listOf(
+            "nearest" to "Nearest",
+            "aligned" to "Aligned",
+            "aligned_back" to "Aligned Back",
+            "back" to "Back",
+            "random" to "Random"
+        )
+        OverrideRow(
+            label = "Seam Position",
+            override = overrides.seamPosition,
+            defaultHint = "Aligned",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(seamPosition = overrides.seamPosition.copy(mode = mode))) },
+            fileKey = "seam_position",
+            sourceConfig = sourceConfig,
+            valueContent = {
+                OverrideDropdown(
+                    value = overrides.seamPosition.value ?: "aligned",
+                    options = seamPositions.map { it.first },
+                    labels = seamPositions.map { it.second },
+                    onValueChange = { onOverridesChange(overrides.copy(seamPosition = OverrideValue(OverrideMode.OVERRIDE, it))) }
                 )
             }
         )
@@ -95,6 +144,8 @@ fun SlicingOverridesAccordion(
             override = overrides.infillPattern,
             defaultHint = "gyroid",
             onModeChange = { mode -> onOverridesChange(overrides.copy(infillPattern = overrides.infillPattern.copy(mode = mode))) },
+            fileKey = "sparse_infill_pattern",
+            sourceConfig = sourceConfig,
             valueContent = {
                 val patterns = listOf("gyroid", "grid", "lines", "honeycomb", "cubic", "triangles", "rectilinear", "adaptive_cubic", "lightning")
                 OverrideDropdown(
@@ -110,6 +161,8 @@ fun SlicingOverridesAccordion(
             override = overrides.sparseInfillSpeed,
             defaultHint = "auto",
             onModeChange = { mode -> onOverridesChange(overrides.copy(sparseInfillSpeed = overrides.sparseInfillSpeed.copy(mode = mode))) },
+            fileKey = "sparse_infill_speed",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.sparseInfillSpeed.value ?: 0,
@@ -124,6 +177,8 @@ fun SlicingOverridesAccordion(
             override = overrides.topShellLayers,
             defaultHint = "5",
             onModeChange = { mode -> onOverridesChange(overrides.copy(topShellLayers = overrides.topShellLayers.copy(mode = mode))) },
+            fileKey = "top_shell_layers",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.topShellLayers.value ?: 5,
@@ -137,6 +192,8 @@ fun SlicingOverridesAccordion(
             override = overrides.bottomShellLayers,
             defaultHint = "4",
             onModeChange = { mode -> onOverridesChange(overrides.copy(bottomShellLayers = overrides.bottomShellLayers.copy(mode = mode))) },
+            fileKey = "bottom_shell_layers",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.bottomShellLayers.value ?: 4,
@@ -159,6 +216,8 @@ fun SlicingOverridesAccordion(
             override = overrides.topSurfacePattern,
             defaultHint = "Monotonic",
             onModeChange = { mode -> onOverridesChange(overrides.copy(topSurfacePattern = overrides.topSurfacePattern.copy(mode = mode))) },
+            fileKey = "top_surface_pattern",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideDropdown(
                     value = overrides.topSurfacePattern.value ?: "monotonic",
@@ -174,12 +233,29 @@ fun SlicingOverridesAccordion(
             override = overrides.bottomSurfacePattern,
             defaultHint = "Monotonic",
             onModeChange = { mode -> onOverridesChange(overrides.copy(bottomSurfacePattern = overrides.bottomSurfacePattern.copy(mode = mode))) },
+            fileKey = "bottom_surface_pattern",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideDropdown(
                     value = overrides.bottomSurfacePattern.value ?: "monotonic",
                     options = surfacePatterns.map { it.first },
                     labels = surfacePatterns.map { it.second },
                     onValueChange = { onOverridesChange(overrides.copy(bottomSurfacePattern = OverrideValue(OverrideMode.OVERRIDE, it))) }
+                )
+            }
+        )
+
+        OverrideRow(
+            label = "Reduce Infill Retraction",
+            override = overrides.reduceInfillRetraction,
+            defaultHint = "Off",
+            onModeChange = { mode -> onOverridesChange(overrides.copy(reduceInfillRetraction = overrides.reduceInfillRetraction.copy(mode = mode))) },
+            fileKey = "reduce_infill_retraction",
+            sourceConfig = sourceConfig,
+            valueContent = {
+                OverrideToggle(
+                    value = overrides.reduceInfillRetraction.value ?: false,
+                    onValueChange = { onOverridesChange(overrides.copy(reduceInfillRetraction = OverrideValue(OverrideMode.OVERRIDE, it))) }
                 )
             }
         )
@@ -196,6 +272,8 @@ fun SlicingOverridesAccordion(
             override = overrides.supports,
             defaultHint = "Off",
             onModeChange = { mode -> onOverridesChange(overrides.copy(supports = overrides.supports.copy(mode = mode))) },
+            fileKey = "enable_support",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideToggle(
                     value = overrides.supports.value ?: false,
@@ -210,6 +288,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportType,
                 defaultHint = "Normal (Auto)",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportType = overrides.supportType.copy(mode = mode))) },
+                fileKey = "support_type",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     val types = listOf("normal(auto)" to "Normal", "tree(auto)" to "Tree")
                     OverrideDropdown(
@@ -226,6 +306,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportAngle,
                 defaultHint = "30\u00B0",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportAngle = overrides.supportAngle.copy(mode = mode))) },
+                fileKey = "support_threshold_angle",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideIntField(
                         value = overrides.supportAngle.value ?: 30,
@@ -240,6 +322,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportBuildPlateOnly,
                 defaultHint = "Off",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportBuildPlateOnly = overrides.supportBuildPlateOnly.copy(mode = mode))) },
+                fileKey = "support_on_build_plate_only",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideToggle(
                         value = overrides.supportBuildPlateOnly.value ?: false,
@@ -253,6 +337,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportPattern,
                 defaultHint = "Default",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportPattern = overrides.supportPattern.copy(mode = mode))) },
+                fileKey = "support_base_pattern",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     val patterns = listOf("default", "rectilinear", "rectilinear_grid", "honeycomb", "lightning")
                     OverrideDropdown(
@@ -268,6 +354,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportPatternSpacing,
                 defaultHint = "2.5 mm",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportPatternSpacing = overrides.supportPatternSpacing.copy(mode = mode))) },
+                fileKey = "support_base_pattern_spacing",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideFloatField(
                         value = overrides.supportPatternSpacing.value ?: 2.5f,
@@ -282,6 +370,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportInterfaceTopLayers,
                 defaultHint = "3",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfaceTopLayers = overrides.supportInterfaceTopLayers.copy(mode = mode))) },
+                fileKey = "support_interface_top_layers",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideIntField(
                         value = overrides.supportInterfaceTopLayers.value ?: 3,
@@ -295,6 +385,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportInterfaceBottomLayers,
                 defaultHint = "0",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfaceBottomLayers = overrides.supportInterfaceBottomLayers.copy(mode = mode))) },
+                fileKey = "support_interface_bottom_layers",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideIntField(
                         value = overrides.supportInterfaceBottomLayers.value ?: 0,
@@ -308,6 +400,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportFilament,
                 defaultHint = "Default",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportFilament = overrides.supportFilament.copy(mode = mode))) },
+                fileKey = "support_filament",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     val options = listOf(0 to "Default") + (1..4).map { it to "Extruder $it" }
                     OverrideDropdown(
@@ -324,6 +418,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportInterfaceFilament,
                 defaultHint = "Default",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfaceFilament = overrides.supportInterfaceFilament.copy(mode = mode))) },
+                fileKey = "support_interface_filament",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     val options = listOf(0 to "Default") + (1..4).map { it to "Extruder $it" }
                     OverrideDropdown(
@@ -340,6 +436,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportXyDistance,
                 defaultHint = "0.35 mm",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportXyDistance = overrides.supportXyDistance.copy(mode = mode))) },
+                fileKey = "support_object_xy_distance",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideFloatField(
                         value = overrides.supportXyDistance.value ?: 0.35f,
@@ -354,6 +452,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportInterfacePattern,
                 defaultHint = "Auto",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfacePattern = overrides.supportInterfacePattern.copy(mode = mode))) },
+                fileKey = "support_interface_pattern",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     val patterns = listOf("auto" to "Auto", "rectilinear" to "Rectilinear",
                         "concentric" to "Concentric", "rectilinear_grid" to "Rectilinear Grid")
@@ -371,6 +471,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportInterfaceSpacing,
                 defaultHint = "0.5 mm",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportInterfaceSpacing = overrides.supportInterfaceSpacing.copy(mode = mode))) },
+                fileKey = "support_interface_spacing",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideFloatField(
                         value = overrides.supportInterfaceSpacing.value ?: 0.5f,
@@ -385,6 +487,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.supportSpeed,
                 defaultHint = "auto",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(supportSpeed = overrides.supportSpeed.copy(mode = mode))) },
+                fileKey = "support_speed",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideIntField(
                         value = overrides.supportSpeed.value ?: 0,
@@ -402,6 +506,8 @@ fun SlicingOverridesAccordion(
                     override = overrides.treeSupportBranchAngle,
                     defaultHint = "40\u00B0",
                     onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchAngle = overrides.treeSupportBranchAngle.copy(mode = mode))) },
+                    fileKey = "tree_support_branch_angle",
+                    sourceConfig = sourceConfig,
                     valueContent = {
                         OverrideIntField(
                             value = overrides.treeSupportBranchAngle.value ?: 40,
@@ -416,6 +522,8 @@ fun SlicingOverridesAccordion(
                     override = overrides.treeSupportBranchDistance,
                     defaultHint = "5.0 mm",
                     onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchDistance = overrides.treeSupportBranchDistance.copy(mode = mode))) },
+                    fileKey = "tree_support_branch_distance",
+                    sourceConfig = sourceConfig,
                     valueContent = {
                         OverrideFloatField(
                             value = overrides.treeSupportBranchDistance.value ?: 5.0f,
@@ -430,6 +538,8 @@ fun SlicingOverridesAccordion(
                     override = overrides.treeSupportBranchDiameter,
                     defaultHint = "5.0 mm",
                     onModeChange = { mode -> onOverridesChange(overrides.copy(treeSupportBranchDiameter = overrides.treeSupportBranchDiameter.copy(mode = mode))) },
+                    fileKey = "tree_support_branch_diameter",
+                    sourceConfig = sourceConfig,
                     valueContent = {
                         OverrideFloatField(
                             value = overrides.treeSupportBranchDiameter.value ?: 5.0f,
@@ -453,6 +563,8 @@ fun SlicingOverridesAccordion(
             override = overrides.primeTower,
             defaultHint = "Off",
             onModeChange = { mode -> onOverridesChange(overrides.copy(primeTower = overrides.primeTower.copy(mode = mode))) },
+            fileKey = "enable_prime_tower",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideToggle(
                     value = overrides.primeTower.value ?: false,
@@ -466,6 +578,8 @@ fun SlicingOverridesAccordion(
             override = overrides.primeVolume,
             defaultHint = "45",
             onModeChange = { mode -> onOverridesChange(overrides.copy(primeVolume = overrides.primeVolume.copy(mode = mode))) },
+            fileKey = "prime_volume",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.primeVolume.value ?: 45,
@@ -479,6 +593,8 @@ fun SlicingOverridesAccordion(
             override = overrides.primeTowerBrimWidth,
             defaultHint = "3 mm",
             onModeChange = { mode -> onOverridesChange(overrides.copy(primeTowerBrimWidth = overrides.primeTowerBrimWidth.copy(mode = mode))) },
+            fileKey = "prime_tower_brim_width",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideFloatField(
                     value = overrides.primeTowerBrimWidth.value ?: 3f,
@@ -493,6 +609,8 @@ fun SlicingOverridesAccordion(
             override = overrides.primeTowerBrimChamfer,
             defaultHint = "On",
             onModeChange = { mode -> onOverridesChange(overrides.copy(primeTowerBrimChamfer = overrides.primeTowerBrimChamfer.copy(mode = mode))) },
+            fileKey = "prime_tower_brim_chamfer",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideToggle(
                     value = overrides.primeTowerBrimChamfer.value ?: true,
@@ -506,6 +624,8 @@ fun SlicingOverridesAccordion(
             override = overrides.primeTowerChamferMaxWidth,
             defaultHint = "5 mm",
             onModeChange = { mode -> onOverridesChange(overrides.copy(primeTowerChamferMaxWidth = overrides.primeTowerChamferMaxWidth.copy(mode = mode))) },
+            fileKey = "prime_tower_brim_chamfer_max_width",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideFloatField(
                     value = overrides.primeTowerChamferMaxWidth.value ?: 5f,
@@ -536,6 +656,8 @@ fun SlicingOverridesAccordion(
                 override = overrides.bedTemp,
                 defaultHint = "60\u00B0C",
                 onModeChange = { mode -> onOverridesChange(overrides.copy(bedTemp = overrides.bedTemp.copy(mode = mode))) },
+                fileKey = "hot_plate_temp",
+                sourceConfig = sourceConfig,
                 valueContent = {
                     OverrideIntField(
                         value = overrides.bedTemp.value ?: 60,
@@ -558,6 +680,8 @@ fun SlicingOverridesAccordion(
             override = overrides.brimWidth,
             defaultHint = "0 mm",
             onModeChange = { mode -> onOverridesChange(overrides.copy(brimWidth = overrides.brimWidth.copy(mode = mode))) },
+            fileKey = "brim_width",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideFloatField(
                     value = overrides.brimWidth.value ?: 0f,
@@ -572,6 +696,8 @@ fun SlicingOverridesAccordion(
             override = overrides.skirtLoops,
             defaultHint = "0",
             onModeChange = { mode -> onOverridesChange(overrides.copy(skirtLoops = overrides.skirtLoops.copy(mode = mode))) },
+            fileKey = "skirt_loops",
+            sourceConfig = sourceConfig,
             valueContent = {
                 OverrideIntField(
                     value = overrides.skirtLoops.value ?: 0,
@@ -636,6 +762,21 @@ fun ExpandableOverrideSection(
     }
 }
 
+internal fun formatFileValue(value: Any): String = when (value) {
+    is Boolean -> if (value) "on" else "off"
+    is String -> when {
+        value == "1" -> "on"
+        value == "0" -> "off"
+        value.endsWith("%") -> value
+        value.contains("(") -> value.substringBefore("(").trim()
+            .replaceFirstChar { it.uppercase() }
+        else -> value.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+    }
+    is Number -> value.toString()
+    is List<*> -> value.firstOrNull()?.let { formatFileValue(it) } ?: value.toString()
+    else -> value.toString()
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun <T> OverrideRow(
@@ -643,6 +784,8 @@ fun <T> OverrideRow(
     override: OverrideValue<T>,
     defaultHint: String,
     onModeChange: (OverrideMode) -> Unit,
+    fileKey: String? = null,
+    sourceConfig: Map<String, Any>? = null,
     valueContent: @Composable () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -659,6 +802,15 @@ fun <T> OverrideRow(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
+        }
+
+        val fileValue = fileKey?.let { key -> sourceConfig?.get(key)?.let { formatFileValue(it) } }
+        if (fileValue != null) {
+            Text(
+                "File: $fileValue",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
+            )
         }
 
         val modes = OverrideMode.entries

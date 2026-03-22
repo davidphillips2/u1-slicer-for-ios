@@ -426,7 +426,8 @@ fun SettingsScreen(
                     plateType = plateType,
                     onPlateTypeChange = { viewModel.setPlateType(it) },
                     bedTemp = config.bedTemp,
-                    onBedTempChange = { viewModel.setBedTemp(it) }
+                    onBedTempChange = { viewModel.setBedTemp(it) },
+                    sourceConfig = null
                 )
             }
 

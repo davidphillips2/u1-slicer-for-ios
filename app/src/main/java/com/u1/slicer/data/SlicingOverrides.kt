@@ -32,6 +32,11 @@ data class SlicingOverrides(
     val topSurfacePattern: OverrideValue<String> = OverrideValue(),
     val bottomSurfacePattern: OverrideValue<String> = OverrideValue(),
     val sparseInfillSpeed: OverrideValue<Int> = OverrideValue(),
+    // F41: Reduce infill retraction - default off for Snapmaker U1
+    val reduceInfillRetraction: OverrideValue<Boolean> = OverrideValue(),
+    // F42: Wall generator and seam position
+    val wallGenerator: OverrideValue<String> = OverrideValue(),
+    val seamPosition: OverrideValue<String> = OverrideValue(),
     val supports: OverrideValue<Boolean> = OverrideValue(),
     val supportType: OverrideValue<String> = OverrideValue(),
     val supportAngle: OverrideValue<Int> = OverrideValue(),
@@ -136,6 +141,9 @@ data class SlicingOverrides(
         putOverride("topSurfacePattern", topSurfacePattern)
         putOverride("bottomSurfacePattern", bottomSurfacePattern)
         putOverride("sparseInfillSpeed", sparseInfillSpeed)
+        putOverride("reduceInfillRetraction", reduceInfillRetraction)
+        putOverride("wallGenerator", wallGenerator)
+        putOverride("seamPosition", seamPosition)
         putOverride("supports", supports)
         putOverride("supportType", supportType)
         putOverride("supportAngle", supportAngle)
@@ -177,6 +185,9 @@ data class SlicingOverrides(
             "topSurfacePattern" to "monotonic",
             "bottomSurfacePattern" to "monotonic",
             "sparseInfillSpeed" to 0,
+            "reduceInfillRetraction" to false,
+            "wallGenerator" to "arachne",
+            "seamPosition" to "aligned",
             "supports" to false,
             "supportType" to "normal(auto)",
             "supportAngle" to 30,
@@ -225,6 +236,9 @@ data class SlicingOverrides(
                     topSurfacePattern = parseOverride("topSurfacePattern") { it.toString() },
                     bottomSurfacePattern = parseOverride("bottomSurfacePattern") { it.toString() },
                     sparseInfillSpeed = parseOverride("sparseInfillSpeed") { (it as Number).toInt() },
+                    reduceInfillRetraction = parseOverride("reduceInfillRetraction") { it as Boolean },
+                    wallGenerator = parseOverride("wallGenerator") { it.toString() },
+                    seamPosition = parseOverride("seamPosition") { it.toString() },
                     supports = parseOverride("supports") { it as Boolean },
                     supportType = parseOverride("supportType") { it.toString() },
                     supportAngle = parseOverride("supportAngle") { (it as Number).toInt() },
