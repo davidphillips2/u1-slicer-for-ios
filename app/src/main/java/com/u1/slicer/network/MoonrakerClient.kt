@@ -165,7 +165,7 @@ class MoonrakerClient {
                 .connectTimeout(3, TimeUnit.SECONDS)
                 .readTimeout(3, TimeUnit.SECONDS)
                 .build()
-            val response = shortClient.newCall(Request.Builder().url(screenUrl).head().build()).execute()
+            val response = shortClient.newCall(Request.Builder().url(screenUrl).get().build()).execute()
             val ok = response.isSuccessful
             response.close()
             ok

@@ -20,6 +20,10 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - Native fix: overflow guards in `IntersectPoint` (vertical-edge + general-case `Dx*q+b`) and `Round()` (large double detection), all falling back to scanbeam position
 - v1.4.21: clear stale clipper markers on APK upgrade to prevent false crash report after updating
 
+### B36: MakerWorld download/loading text is unclear — FIXED v1.4.22
+- Status messages during MakerWorld import were confusing (e.g. "Loading Downloading from MakerWorld……")
+- Fixed: each loading state now provides a complete display message ("Downloading from MakerWorld…", "Loading model.3mf…", "Preparing model…")
+
 ## Open Features
 
 ### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork)
@@ -31,6 +35,10 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **B36**: MakerWorld download/loading text was confusing ("Loading Downloading from MakerWorld……") — each state now provides complete display message — FIXED v1.4.22
+- **F37**: File picker showed all file types — removed `*/*` wildcard, now filters to 3MF/STL/OBJ only — DONE v1.4.22
+- **F38**: G-code preview upgraded to box-tube geometry (top + left + right faces) with bottom-to-top brightness gradient matching u1-slicer-bridge quality — DONE v1.4.22
+- **F39**: Travel move toggle added to inline G-code preview on Preview screen, brighter travel line color — DONE v1.4.22
 - **B31/F35**: Clipper coordinate overflow crash on multi-colour SEMM models — native overflow guards in `IntersectPoint` and `Round()`, Kotlin wipe tower clamping, crash-loop prevention, stale marker cleanup on APK upgrade — FIXED v1.4.20/v1.4.21
 - **Cookie file import**: CookieInfoDialog with browser export + file transfer instructions, stream handling fixes — DONE v1.4.20
 - **F36 (bed temp)**: Editable bed temp field below plate type selector — DONE v1.4.19

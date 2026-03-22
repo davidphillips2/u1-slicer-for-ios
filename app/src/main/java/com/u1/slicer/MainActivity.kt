@@ -302,7 +302,7 @@ class MainActivity : ComponentActivity() {
                 }
                 val appSlicerState by viewModel.state.collectAsState()
                 val sharedPreviewModelKey = when (val s = appSlicerState) {
-                    is SlicerViewModel.SlicerState.Loading -> "loading:${s.filename}"
+                    is SlicerViewModel.SlicerState.Loading -> "loading:${s.message}"
                     else -> viewModel.previewModelPath ?: viewModel.currentModelPath
                 }
                 LaunchedEffect(sharedPreviewModelKey) {
@@ -332,8 +332,7 @@ class MainActivity : ComponentActivity() {
                     "application/octet-stream",
                     "model/3mf",
                     "application/vnd.ms-3mfdocument",
-                    "model/obj",
-                    "*/*"
+                    "model/obj"
                 )
 
                 U1NavGraph(
@@ -645,7 +644,7 @@ fun PrepareScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                Text("Loading ${s.filename}…",
+                                Text(s.message,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                             }
@@ -2457,6 +2456,7 @@ fun InlineGcodePreview(
 ) {
     var viewerView by remember { mutableStateOf<com.u1.slicer.viewer.GcodeViewerView?>(null) }
     var viewerLoading by remember(parsedGcode) { mutableStateOf(true) }
+    var showTravel by remember { mutableStateOf(false) }
     val gcodeLayerCount = parsedGcode.layers.size
     // Use slicer's totalLayers for display (correct print layers), fall back to parsed count
     val displayLayerCount = if (slicerLayerCount > 0) slicerLayerCount else gcodeLayerCount
@@ -2513,12 +2513,24 @@ fun InlineGcodePreview(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
-                IconButton(
-                    onClick = onExpand,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)
+                Row(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(4.dp)
                 ) {
-                    Icon(Icons.Default.Fullscreen, "Full screen",
-                        tint = Color.White.copy(alpha = 0.8f))
+                    IconButton(onClick = {
+                        showTravel = !showTravel
+                        viewerView?.setShowTravel(showTravel)
+                    }) {
+                        Icon(
+                            if (showTravel) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            "Toggle travel moves",
+                            tint = if (showTravel) Color.White
+                                   else Color.White.copy(alpha = 0.4f)
+                        )
+                    }
+                    IconButton(onClick = onExpand) {
+                        Icon(Icons.Default.Fullscreen, "Full screen",
+                            tint = Color.White.copy(alpha = 0.8f))
+                    }
                 }
                 // Layer label overlay — map gcode layer index to display layer
                 Text(

@@ -19,6 +19,13 @@ class PrinterRepository(
 
     private var pollingJob: Job? = null
 
+    /**
+     * When > 0 the polling loop uses 500 ms intervals instead of 2 000 ms.
+     * Decremented each cycle; when it reaches 0 normal polling resumes.
+     */
+    @Volatile
+    private var rapidPollCyclesRemaining = 0
+
     init {
         // Load saved printer URL
         CoroutineScope(Dispatchers.IO).launch {
@@ -52,7 +59,11 @@ class PrinterRepository(
         pollingJob = scope.launch(Dispatchers.IO) {
             while (isActive) {
                 _status.value = client.getStatus()
-                delay(2000)
+                val interval = if (rapidPollCyclesRemaining > 0) {
+                    rapidPollCyclesRemaining--
+                    500L
+                } else 2000L
+                delay(interval)
             }
         }
     }
@@ -66,7 +77,16 @@ class PrinterRepository(
         val uploadName = buildPrinterUploadFilename(filename)
         val uploaded = client.uploadGcode(gcodeFile, uploadName)
         if (!uploaded) return false
-        return client.startPrint(uploadName)
+        val started = client.startPrint(uploadName)
+        if (started) {
+            // Kick off rapid polling so the UI picks up the "printing" state
+            // as soon as Moonraker/Klipper transitions (PRINT_START macro may
+            // take several seconds on Snapmaker U1).  60 cycles × 500 ms = 30 s.
+            rapidPollCyclesRemaining = 60
+            // Immediate refresh so we don't wait for the next poll cycle.
+            _status.value = client.getStatus()
+        }
+        return started
     }
 
     suspend fun uploadOnly(gcodeFile: java.io.File, filename: String): Boolean {

@@ -287,12 +287,14 @@ fun PrinterScreen(
                             Spacer(Modifier.width(8.dp))
                             Text("Print Status", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             Spacer(Modifier.weight(1f))
-                            val (badgeColor, badgeText) = when {
-                                status.isPrinting -> Color(0xFF4CAF50) to "PRINTING"
-                                status.isPaused   -> Color(0xFFFFC107) to "PAUSED"
-                                status.state == "complete" -> Color(0xFF2196F3) to "COMPLETE"
-                                status.state == "error"    -> Color(0xFFEF5350) to "ERROR"
-                                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f) to status.state.uppercase()
+                            val badgeText = resolveStatusBadge(status.state, sendingState is PrinterViewModel.SendingState.PrintStarted)
+                            val badgeColor = when (badgeText) {
+                                "PRINTING" -> Color(0xFF4CAF50)
+                                "PAUSED" -> Color(0xFFFFC107)
+                                "STARTING\u2026" -> Color(0xFF81C784)
+                                "COMPLETE" -> Color(0xFF2196F3)
+                                "ERROR" -> Color(0xFFEF5350)
+                                else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             }
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
@@ -764,5 +766,24 @@ private fun TempTile(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
         }
+    }
+}
+
+/**
+ * Determine the status badge text for the Printer screen.
+ *
+ * When a print was just sent ([justSent] == true) but Moonraker hasn't
+ * transitioned to "printing" yet, we show "STARTING…" instead of the
+ * stale previous-print state (e.g. "CANCELLED").
+ */
+internal fun resolveStatusBadge(printerState: String, justSent: Boolean): String {
+    val staleStates = setOf("cancelled", "standby", "complete", "error")
+    return when {
+        printerState == "printing" -> "PRINTING"
+        printerState == "paused"   -> "PAUSED"
+        justSent && printerState in staleStates -> "STARTING\u2026"
+        printerState == "complete" -> "COMPLETE"
+        printerState == "error"    -> "ERROR"
+        else -> printerState.uppercase()
     }
 }
