@@ -9,7 +9,7 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - Fixed: changed to `Icons.Default.Lightbulb` (yellow when on, dimmed when off) — clearly a physical light, not a UI theme toggle
 - There is no app-level light/dark theme switch; the app is dark-only
 
-### B18: OOM on large/complex 3MF files
+### B18: OOM on large/complex 3MF files (GitHub #17)
 - Reproduce with: `C:\Users\kevin\Downloads\test-data\2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf`
 - This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
 - Also reproduced via MakerWorld WebView download: `super clean.3mf` (58 MB compressed, native tried to allocate 331 MB → OOM with 187 MB free)
@@ -25,9 +25,48 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - Status messages during MakerWorld import were confusing (e.g. "Loading Downloading from MakerWorld……")
 - Fixed: each loading state now provides a complete display message ("Downloading from MakerWorld…", "Loading model.3mf…", "Preparing model…")
 
+## Open Cleanup
+
+### C1: Remove dead warm-reload and upgrade-guard machinery
+- `shouldWarmReloadAfterUpgrade()` now always returns false (disabled in v1.4.24)
+- Code to remove or simplify:
+  - `warmReloadNativeModelAfterUpgrade()` in `SlicerViewModel.kt:2142-2159` — dead method
+  - `shouldWarmReloadAfterUpgrade()` — both companion object (line 2107) and instance method (line 2130)
+  - `post_upgrade_model_warm_reload` diagnostics event — never fires
+  - `post_upgrade_slice_settled` guard settling logic in slice path — audit if still needed
+  - `sessionHasPostUpgradeGuard` in `DiagnosticsStore` — audit if anything else depends on it
+  - `clipperRetryAttempted` and `clipper_recovery_restart` machinery — may still be needed for non-upgrade Clipper errors, audit before removing
+  - The test in `MergeThreeMfInfoTest.kt:234` can be removed entirely
+- **Caution**: `clipperRetryAttempted` may protect against Clipper edge cases unrelated to upgrades — verify before removing
+
 ## Open Features
 
-### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork)
+### F41: Reduce Infill Retraction toggle (GitHub #10)
+- Add a toggle for `reduce_infill_retraction` in slice settings
+- Should default to off (unchecked) to reduce print failures from limited retraction between movements
+- Needs addition to `SlicingOverrides`, `profile_keys[]`, and `applyConfigToPrusa()`
+
+### F42: Wall type and seam position settings (GitHub #11)
+- Add wall generator dropdown (Classic / Arachne) — Arachne is better for organic shapes
+- Add seam position dropdown (Nearest / Aligned / Random / Back etc.)
+- Keys: `wall_generator`, `seam_position`
+- Needs addition to `SlicingOverrides`, `profile_keys[]`, and `applyConfigToPrusa()`
+
+### F43: Show embedded 3MF settings in Prepare (GitHub #12)
+- Display the slicer settings embedded in the loaded 3MF on the Prepare screen
+- Lets users see what config (infill pattern, speeds, etc.) came with the file before slicing
+
+### F44: Push notifications for print progress (GitHub #13)
+- Show Android notifications with print progress percentage
+- Persistent notification in notification panel during active prints
+- Requires a foreground service or WorkManager polling of Moonraker status
+
+### F45: Bambu printer support (GitHub #16)
+- Add support for Bambu Lab printers (communication protocol differs from Moonraker)
+- Consider allowing upload of arbitrary OrcaSlicer printer configs
+- Significant scope — needs investigation of Bambu MQTT/cloud protocol
+
+### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork) (GitHub #18)
 - Source: ratdoux/OrcaSlicer-FullSpectrum — fork of Snapmaker Orca 2.2.4
 - Produces optically-blended colours via layer-cycle alternation (e.g. Blue+Yellow→Green)
 - **Blocked**: upstream was v0.9.4 alpha as of 2026-03-12, untested on real hardware
