@@ -422,7 +422,8 @@ class MainActivity : ComponentActivity() {
                             onNavigatePreview = { navigateTab(Routes.PREVIEW) },
                             onNavigatePrinter = { navigateTab(Routes.PRINTER) },
                             onNavigateJobs = { navigateTab(Routes.JOBS) },
-                            onNavigateSettings = { }
+                            onNavigateSettings = { },
+                            onNavigateMakerWorldLogin = { navController.navigate(Routes.MAKERWORLD_LOGIN) }
                         )
                     }
                 )

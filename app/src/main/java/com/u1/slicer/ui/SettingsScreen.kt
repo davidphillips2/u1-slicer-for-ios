@@ -57,7 +57,8 @@ fun SettingsScreen(
     onNavigatePreview: () -> Unit = {},
     onNavigatePrinter: () -> Unit = {},
     onNavigateJobs: () -> Unit = {},
-    onNavigateSettings: () -> Unit = {}
+    onNavigateSettings: () -> Unit = {},
+    onNavigateMakerWorldLogin: () -> Unit = {}
 ) {
     val config by viewModel.config.collectAsState()
     var nozzleTemp by remember(config) { mutableStateOf(config.nozzleTemp.toString()) }
@@ -257,71 +258,117 @@ fun SettingsScreen(
             }
 
             SettingsSection("MakerWorld") {
+                // Primary action: WebView login
+                if (hasCookies) {
+                    Text(
+                        "Logged in to MakerWorld",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF4CAF50),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    OutlinedButton(
+                        onClick = onNavigateMakerWorldLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Log in again") }
+                } else {
+                    Button(
+                        onClick = onNavigateMakerWorldLogin,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) { Text("Log in to MakerWorld") }
+                }
+
+                // Advanced: manual cookie entry (collapsed by default)
+                var showAdvanced by remember { mutableStateOf(false) }
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAdvanced = !showAdvanced }
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "Send cookies with URL downloads",
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
+                        "Advanced",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
-                    IconButton(
-                        onClick = { showCookieInfo = true }
-                    ) {
-                        Icon(
-                            Icons.Outlined.Info,
-                            contentDescription = "Cookie instructions",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Switch(
-                        checked = cookiesEnabled,
-                        onCheckedChange = { viewModel.saveMakerWorldCookiesEnabled(it) }
+                    Icon(
+                        if (showAdvanced) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                        contentDescription = if (showAdvanced) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
-                if (cookiesEnabled) {
-                    Text(
-                        if (hasCookies) "Session cookies configured"
-                        else "Add cookies for downloads requiring login",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (hasCookies) androidx.compose.ui.graphics.Color(0xFF4CAF50)
-                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
-                    OutlinedTextField(
-                        value = cookieInput,
-                        onValueChange = { cookieInput = it },
-                        label = { Text("MakerWorld Cookies") },
-                        placeholder = { Text("Paste cookies from browser") },
-                        visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                if (cookieInput.isNotBlank()) {
-                                    viewModel.saveMakerWorldCookies(cookieInput)
-                                    cookieInput = ""
+                AnimatedVisibility(visible = showAdvanced) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                "Send cookies with URL downloads",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            IconButton(
+                                onClick = { showCookieInfo = true }
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Info,
+                                    contentDescription = "Cookie instructions",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Switch(
+                                checked = cookiesEnabled,
+                                onCheckedChange = { viewModel.saveMakerWorldCookiesEnabled(it) }
+                            )
+                        }
+                        if (cookiesEnabled) {
+                            Text(
+                                if (hasCookies) "Session cookies configured"
+                                else "Add cookies for downloads requiring login",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (hasCookies) Color(0xFF4CAF50)
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                            OutlinedTextField(
+                                value = cookieInput,
+                                onValueChange = { cookieInput = it },
+                                label = { Text("MakerWorld Cookies") },
+                                placeholder = { Text("Paste cookies from browser") },
+                                visualTransformation = PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        if (cookieInput.isNotBlank()) {
+                                            viewModel.saveMakerWorldCookies(cookieInput)
+                                            cookieInput = ""
+                                        }
+                                    },
+                                    enabled = cookieInput.isNotBlank(),
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("Save Cookies", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                OutlinedButton(
+                                    onClick = { cookieFileLauncher.launch("text/plain") },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) { Text("Import from File", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                                if (hasCookies) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.saveMakerWorldCookies("") },
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) { Text("Clear", maxLines = 1, overflow = TextOverflow.Ellipsis) }
                                 }
-                            },
-                            enabled = cookieInput.isNotBlank(),
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) { Text("Save Cookies", maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                        OutlinedButton(
-                            onClick = { cookieFileLauncher.launch("text/plain") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) { Text("Import from File", maxLines = 1, overflow = TextOverflow.Ellipsis) }
-                        if (hasCookies) {
-                            OutlinedButton(
-                                onClick = { viewModel.saveMakerWorldCookies("") },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) { Text("Clear", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                            }
                         }
                     }
                 }
