@@ -10,7 +10,6 @@
 		121631582F71D5D900DC6CA8 /* SharedModule.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 121631572F71D5D900DC6CA8 /* SharedModule.framework */; };
 		121631592F71D5D900DC6CA8 /* SharedModule.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 121631572F71D5D900DC6CA8 /* SharedModule.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A1000001000000000000001 /* U1SlicerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* U1SlicerApp.swift */; };
-		A1000003000000000000001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004000000000000001 /* SceneDelegate.swift */; };
 		A1000005000000000000001 /* PrepareScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* PrepareScreen.swift */; };
 		A1000007000000000000001 /* PrepareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000008000000000000001 /* PrepareViewModel.swift */; };
 		A1000009000000000000001 /* PreviewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000010000000000000001 /* PreviewScreen.swift */; };
@@ -38,7 +37,6 @@
 /* Begin PBXFileReference section */
 		121631572F71D5D900DC6CA8 /* SharedModule.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SharedModule.framework; path = ../../shared/build/bin/iosArm64/releaseFramework/SharedModule.framework; sourceTree = "<group>"; };
 		A1000002000000000000001 /* U1SlicerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = U1SlicerApp.swift; sourceTree = "<group>"; };
-		A1000004000000000000001 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A1000006000000000000001 /* PrepareScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareScreen.swift; sourceTree = "<group>"; };
 		A1000008000000000000001 /* PrepareViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareViewModel.swift; sourceTree = "<group>"; };
 		A1000010000000000000001 /* PreviewScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewScreen.swift; sourceTree = "<group>"; };
@@ -74,13 +72,13 @@
 		A1000024000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				A1000025000000000000001 /* U1Slicer */,
+				A1000025000000000000001,
 				121631562F71D5D800DC6CA8 /* Frameworks */,
 				A1000026000000000000001 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		A1000025000000000000001 /* U1Slicer */ = {
+		A1000025000000000000001 = {
 			isa = PBXGroup;
 			children = (
 				A1000027000000000000001 /* App */,
@@ -102,7 +100,6 @@
 			isa = PBXGroup;
 			children = (
 				A1000002000000000000001 /* U1SlicerApp.swift */,
-				A1000004000000000000001 /* SceneDelegate.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -255,7 +252,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000001000000000000001 /* U1SlicerApp.swift in Sources */,
-				A1000003000000000000001 /* SceneDelegate.swift in Sources */,
 				A1000005000000000000001 /* PrepareScreen.swift in Sources */,
 				A1000007000000000000001 /* PrepareViewModel.swift in Sources */,
 				A1000009000000000000001 /* PreviewScreen.swift in Sources */,
@@ -408,6 +404,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -436,6 +433,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
