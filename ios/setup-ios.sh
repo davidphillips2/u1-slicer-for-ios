@@ -35,13 +35,13 @@ echo ""
 # Step 3: Show framework locations
 echo "📋 Step 3/4: Framework locations:"
 echo "  Device (arm64):"
-echo "    shared/build/xcodegen/Release/SharedModule/Release-iphonearm/SharedModule.framework"
+echo "    shared/build/bin/iosArm64/releaseFramework/SharedModule.framework"
 echo ""
 echo "  Simulator (x64):"
-echo "    shared/build/xcodegen/Release/SharedModule/Release-iphonesimulator/SharedModule.framework"
+echo "    shared/build/bin/iosX64/releaseFramework/SharedModule.framework"
 echo ""
 echo "  Simulator (arm64):"
-echo "    shared/build/xcodegen/Release/SharedModule/Release-iphonesimulatorarm64/SharedModule.framework"
+echo "    shared/build/bin/iosSimulatorArm64/releaseFramework/SharedModule.framework"
 echo ""
 
 # Step 4: Open in Xcode
