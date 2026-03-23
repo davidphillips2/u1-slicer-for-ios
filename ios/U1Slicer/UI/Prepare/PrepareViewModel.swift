@@ -29,10 +29,10 @@ class PrepareViewModel: ObservableObject {
     func loadModel(from url: URL) {
         // TODO: Load model via shared module's parser
         // For now, create placeholder data
-        loadPlaceholderModel()
+        loadPlaceholderModel(filename: url.lastPathComponent)
     }
 
-    private func loadPlaceholderModel() {
+    private func loadPlaceholderModel(filename: String = "model.stl") {
         // Create a simple cube as placeholder
         let vertices: [Float] = [
             // Front face
@@ -49,7 +49,7 @@ class PrepareViewModel: ObservableObject {
         )
 
         modelInfo = ModelInfo3D(
-            filename: url.lastPathComponent,
+            filename: filename,
             format: "stl",
             sizeX: 20.0,
             sizeY: 20.0,
