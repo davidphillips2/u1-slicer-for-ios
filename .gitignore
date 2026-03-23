@@ -51,3 +51,15 @@ slice_test.png
 
 # PrusaSlicer source (large, fetched via script)
 app/src/main/cpp/prusaslicer/
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+.DS_Store
+
+# CocoaPods
+ios/Pods/
+ios/Podfile.lock
+
+# Kotlin build
+shared/build/

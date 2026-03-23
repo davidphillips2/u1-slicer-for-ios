@@ -16,7 +16,41 @@ kotlin {
     }
 
     // iOS targets
+    val iosFrameworkName = "SharedModule"
     val iosTargets = listOf(iosX64(), iosArm64(), iosSimulatorArm64())
+
+    // Configure iOS framework export
+    iosTargets.forEach {
+        it.binaries.framework {
+            baseName = iosFrameworkName
+            isStatic = true
+
+            // Export dependencies for iOS
+            export(libs.kotlinx.coroutines.core)
+            export(libs.kotlinx.serialization.json)
+            export(libs.ktor.client.core)
+
+            // Transitive exports
+            export(libs.ktor.client.content.negotiation)
+            export(libs.ktor.serialization.kotlinx.json)
+            export(libs.sql.delight.native.driver)
+        }
+    }
+
+    // CocoaPods integration (optional, for manual Podfile setup)
+    cocoapods {
+        summary = "U1 Slicer shared code"
+        homepage = "https://github.com/davidphillips2/u1-slicer-for-ios"
+        ios.deploymentTarget = "14.0"
+        podfile = project.file("../ios/Podfile")
+        framework {
+            baseName = iosFrameworkName
+            isStatic = true
+            // Export dependencies
+            export("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+            export("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+        }
+    }
 
     // Create a shared iOS source set
     sourceSets {

@@ -1,0 +1,19 @@
+platform :ios, '14.0'
+use_frameworks! :linkage => :static
+
+target 'U1Slicer' do
+  # Kotlin Multiplatform Shared Module
+  pod 'SharedModule', :path => '../shared'
+
+  # If you need additional iOS dependencies, add them here
+  # pod 'Alamofire', '~> 5.8'
+
+  post_install do |installer|
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        # Ensure static linking
+        config.build_settings['MACH_O_TYPE'] = 'staticlib'
+      end
+    end
+  end
+end

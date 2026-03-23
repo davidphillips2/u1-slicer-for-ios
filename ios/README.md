@@ -84,30 +84,83 @@ ios/U1Slicer/
 
 - macOS 14.0+
 - Xcode 15.0+
-- iOS 14.0+ target
+- iOS 14.0+ deployment target
+- CocoaPods (install with `sudo gem install cocoapods`)
 - Kotlin Multiplatform shared module
 
 ### Build Steps
 
-1. **Clone the repository**:
+#### Option 1: Using CocoaPods (Recommended)
+
+1. **Build the shared Kotlin framework**:
    ```bash
-   git clone https://github.com/davidphillips2/u1-slicer-for-ios.git
-   cd u1-slicer-for-ios
+   ./ios/build-shared-framework.sh
+   ```
+   Or manually:
+   ```bash
+   ./gradlew :shared:linkReleaseFrameworkIosArm64
+   ./gradlew :shared:linkReleaseFrameworkIosX64
+   ./gradlew :shared:linkReleaseFrameworkIosSimulatorArm64
    ```
 
-2. **Build the shared module**:
+2. **Install CocoaPods dependencies**:
    ```bash
-   ./gradlew :shared:compileKotlinIosArm64
+   cd ios
+   pod install
    ```
 
-3. **Open in Xcode**:
+3. **Open the workspace** (not the project!):
    ```bash
-   open ios/U1Slicer/U1Slicer.xcodeproj
+   open U1Slicer.xcworkspace
+   ```
+   Or use Xcode:
+   ```bash
+   open U1Slicer/U1Slicer.xcworkspace
    ```
 
 4. **Build and run**:
    - Select a target device or simulator
    - Product → Run (⌘R)
+
+#### Option 2: Direct Framework Integration
+
+1. **Build all iOS frameworks**:
+   ```bash
+   ./ios/build-shared-framework.sh
+   ```
+
+2. **Open the project**:
+   ```bash
+   open ios/U1Slicer/U1Slicer.xcodeproj
+   ```
+
+3. **Add framework reference** (one-time setup):
+   - Select U1Slicer target
+   - General → Frameworks, Libraries, and Embedded Content
+   - Add the built framework from `shared/build/xcodegen/...`
+
+4. **Build and run**:
+   - Select a target device or simulator
+   - Product → Run (⌘R)
+
+### Troubleshooting
+
+**Pod install fails**:
+```bash
+pod repo update
+cd ios && pod install
+```
+
+**Framework not found**:
+```bash
+./gradlew clean :shared:linkReleaseFrameworkIosArm64
+./ios/build-shared-framework.sh
+```
+
+**Swift import errors**:
+- Ensure you're using `.xcworkspace` (CocoaPods) or have added the framework
+- Clean build folder: Shift + Command + K
+- Rebuild the shared framework
 
 ## Dependencies
 
