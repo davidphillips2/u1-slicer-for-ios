@@ -1,5 +1,6 @@
 package com.u1.slicer.shared.data
 
+import com.u1.slicer.shared.platform.PlatformUtils
 import kotlinx.serialization.Serializable
 
 /**
@@ -18,5 +19,5 @@ data class ModelInfo(
     val isManifold: Boolean
 ) {
     val dimensionString: String
-        get() = "%.1f × %.1f × %.1f mm".format(sizeX, sizeY, sizeZ)
+        get() = "${PlatformUtils.formatFloat("%.1f", sizeX)} × ${PlatformUtils.formatFloat("%.1f", sizeY)} × ${PlatformUtils.formatFloat("%.1f", sizeZ)} mm"
 }

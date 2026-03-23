@@ -88,7 +88,7 @@ actual class SapilWrapper actual constructor() {
     /**
      * Clean up native resources
      */
-    fun dispose() {
+    actual fun dispose() {
         if (nativeHandle != 0L) {
             // TODO: Call native cleanup function
             nativeHandle = 0

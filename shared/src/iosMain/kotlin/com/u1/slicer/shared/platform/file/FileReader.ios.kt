@@ -1,52 +1,67 @@
 package com.u1.slicer.shared.platform.file
 
-import platform.Foundation.NSData
-import platform.Foundation.NSError
-import platform.Foundation.NSString
-import platform.Foundation.stringWithDataEncoding
-import platform.Foundation.dataWithContentsOfFile
-import platform.Foundation.UTF8StringEncoding
+import com.u1.slicer.shared.platform.IOException
+import kotlinx.cinterop.*
+import platform.Foundation.*
 
 actual class FileReaderFactory {
     actual fun createReader(): FileReader = IosFileReader()
     actual fun createFilePath(path: String): FilePath = IosFilePath(path)
 }
 
+@OptIn(ExperimentalForeignApi::class)
 class IosFileReader : FileReader {
     override suspend fun readText(path: String): String {
-        val data = NSData.dataWithContentsOfFile(path) ?: throw IOException("File not found: $path")
-        return NSString.stringWithData(data, UTF8StringEncoding) as String
+        val nsString = NSString.stringWithString(path)
+        val nsUrl = NSURL.fileURLWithPath(nsString)
+        val data = NSData.dataWithContentsOfURL(nsUrl)
+            ?: throw IOException("File not found: $path")
+
+        val nsStringResult = NSString.create(data, NSUTF8StringEncoding) as? NSString
+            ?: throw IOException("Failed to decode file as UTF-8")
+        return nsStringResult as String
     }
 
     override suspend fun readBytes(path: String): ByteArray {
-        val data = NSData.dataWithContentsOfFile(path) ?: throw IOException("File not found: $path")
-        return data.toByteArray()
+        val nsString = NSString.stringWithString(path)
+        val nsUrl = NSURL.fileURLWithPath(nsString)
+        val data = NSData.dataWithContentsOfURL(nsUrl)
+            ?: throw IOException("File not found: $path")
+
+        val length = data.length.toInt()
+        val bytes = ByteArray(length)
+
+        // Copy NSData to ByteArray
+        memScoped {
+            val buffer = allocArray<ByteVar>(length)
+            data.getBytes(buffer, length.toULong())
+            for (i in 0 until length) {
+                bytes[i] = buffer[i]
+            }
+        }
+        return bytes
     }
 
     override suspend fun exists(path: String): Boolean {
-        val data = NSData.dataWithContentsOfFile(path)
+        val nsString = NSString.stringWithString(path)
+        val nsUrl = NSURL.fileURLWithPath(nsString)
+        val data = NSData.dataWithContentsOfURL(nsUrl)
         return data != null
     }
 
     override suspend fun getFileSize(path: String): Long {
-        val data = NSData.dataWithContentsOfFile(path) ?: throw IOException("File not found: $path")
+        val nsString = NSString.stringWithString(path)
+        val nsUrl = NSURL.fileURLWithPath(nsString)
+        val data = NSData.dataWithContentsOfURL(nsUrl)
+            ?: return 0L
         return data.length.toLong()
     }
 }
 
 class IosFilePath(override val path: String) : FilePath {
     override val name: String
-        get() = path.substringAfterLast('/')
+        get() = path.substringAfterLast("/")
+
     override val extension: String
-        get() = path.substringAfterLast('.', "").substringAfterLast('/')
+        get() = path.substringAfterLast('.', "")
 }
-
-// Helper extension to convert NSData to ByteArray
-fun NSData.toByteArray(): ByteArray {
-    val bytes = ByteArray(this.length.toInt())
-    this.getBytes(bytes.toByteArrayRef(), this.length)
-    return bytes
-}
-
-// IOException for iOS
-class IOException(message: String) : Exception(message)

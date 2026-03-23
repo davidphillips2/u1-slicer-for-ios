@@ -1,5 +1,6 @@
 package com.u1.slicer.shared.data
 
+import com.u1.slicer.shared.platform.PlatformUtils
 import kotlinx.serialization.Serializable
 
 /**
@@ -25,5 +26,5 @@ data class SliceResult(
         }
 
     val estimatedFilamentFormatted: String
-        get() = "%.1f g (%.0f mm)".format(estimatedFilamentGrams, estimatedFilamentMm)
+        get() = "${PlatformUtils.formatFloat("%.1f", estimatedFilamentGrams)} g (${PlatformUtils.formatFloat("%.0f", estimatedFilamentMm)} mm)"
 }

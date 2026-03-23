@@ -2,11 +2,14 @@ package com.u1.slicer.shared.graphics
 
 import com.u1.slicer.shared.platform.getLogger
 import com.u1.slicer.shared.viewer.MeshData
+import kotlinx.cinterop.*
 import platform.Foundation.NSData
-import platform.Foundation.dataWithBytes
+import platform.Foundation.NSMakeRange
+import platform.Foundation.create
 import platform.Metal.*
 import platform.MetalKit.MTKView
 import platform.QuartzCore.CAMetalLayer
+import kotlin.experimental.ExperimentalNativeApi
 
 /**
  * iOS implementation using Metal
@@ -19,6 +22,7 @@ import platform.QuartzCore.CAMetalLayer
  * 2. Kotlin/Native cinterop: Bridges Swift/Kotlin
  * 3. This class: Wraps the Metal renderer for cross-platform API
  */
+@OptIn(ExperimentalForeignApi::class, ExperimentalNativeApi::class)
 actual class MeshRenderer actual constructor() {
 
     private var metalRenderer: MetalMeshRendererWrapper? = null
@@ -107,6 +111,7 @@ actual class MeshRenderer actual constructor() {
  * This provides the C interface that Kotlin/Native can call into.
  * The actual implementation is in Swift (see ios/U1Slicer/Platform/MetalMeshRenderer.swift)
  */
+@OptIn(ExperimentalForeignApi::class, ExperimentalNativeApi::class)
 private class MetalMeshRendererWrapper {
     private var rendererPtr: Long = 0
 
@@ -115,24 +120,30 @@ private class MetalMeshRendererWrapper {
     }
 
     fun setMesh(vertices: FloatArray, vertexCount: Int, extruderIndices: ByteArray?) {
-        val verticesData = NSData.dataWithBytes(
-            bytes = vertices,
-            length = (vertices.size * 4).toULong()
-        )
-        val indicesData = extruderIndices?.let {
-            NSData.dataWithBytes(
-                bytes = it,
-                length = it.size.toULong()
+        memScoped {
+            val verticesPtr = allocArray<FloatVar>(vertices.size)
+            for (i in vertices.indices) {
+                verticesPtr[i] = vertices[i]
+            }
+
+            val indicesPtr: CPointer<ByteVar>? = if (extruderIndices != null) {
+                val ptr = allocArray<ByteVar>(extruderIndices.size)
+                for (i in extruderIndices.indices) {
+                    ptr[i] = extruderIndices[i]
+                }
+                ptr
+            } else {
+                null
+            }
+
+            metal_renderer_set_mesh(
+                rendererPtr,
+                verticesPtr,
+                vertexCount,
+                indicesPtr,
+                extruderIndices?.size ?: 0
             )
         }
-
-        metal_renderer_set_mesh(
-            rendererPtr,
-            verticesData,
-            vertexCount,
-            indicesData,
-            extruderIndices?.size ?: 0
-        )
     }
 
     fun clearMesh() {
@@ -209,24 +220,29 @@ private class MetalMeshRendererWrapper {
 // C Function Declarations (to be implemented in Swift)
 // ============================================================================
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_create")
 private external fun metal_renderer_create(): Long
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_destroy")
 private external fun metal_renderer_destroy(renderer: Long)
 
+@OptIn(ExperimentalForeignApi::class, ExperimentalNativeApi::class)
 @CName("metal_renderer_set_mesh")
 private external fun metal_renderer_set_mesh(
     renderer: Long,
-    vertices: NSData,
+    vertices: CPointer<FloatVar>,
     vertexCount: Int,
-    extruderIndices: NSData?,
+    extruderIndices: CPointer<ByteVar>?,
     extruderCount: Int
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_clear_mesh")
 private external fun metal_renderer_clear_mesh(renderer: Long)
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_instance_colors")
 private external fun metal_renderer_set_instance_colors(
     renderer: Long,
@@ -234,6 +250,7 @@ private external fun metal_renderer_set_instance_colors(
     count: Int
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_instance_positions")
 private external fun metal_renderer_set_instance_positions(
     renderer: Long,
@@ -241,6 +258,7 @@ private external fun metal_renderer_set_instance_positions(
     count: Int
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_model_scale")
 private external fun metal_renderer_set_model_scale(
     renderer: Long,
@@ -249,12 +267,14 @@ private external fun metal_renderer_set_model_scale(
     z: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_highlight_index")
 private external fun metal_renderer_set_highlight_index(
     renderer: Long,
     index: Int
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_wipe_tower")
 private external fun metal_renderer_set_wipe_tower(
     renderer: Long,
@@ -264,15 +284,18 @@ private external fun metal_renderer_set_wipe_tower(
     depth: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_clear_wipe_tower")
 private external fun metal_renderer_clear_wipe_tower(renderer: Long)
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_camera_distance")
 private external fun metal_renderer_set_camera_distance(
     renderer: Long,
     distance: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_set_camera_rotation")
 private external fun metal_renderer_set_camera_rotation(
     renderer: Long,
@@ -280,9 +303,11 @@ private external fun metal_renderer_set_camera_rotation(
     pitch: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_reset_camera")
 private external fun metal_renderer_reset_camera(renderer: Long)
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_render")
 private external fun metal_renderer_render(
     renderer: Long,
@@ -290,6 +315,7 @@ private external fun metal_renderer_render(
     height: Int
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_handle_drag")
 private external fun metal_renderer_handle_drag(
     renderer: Long,
@@ -297,12 +323,14 @@ private external fun metal_renderer_handle_drag(
     dy: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_handle_zoom")
 private external fun metal_renderer_handle_zoom(
     renderer: Long,
     scale: Float
 )
 
+@OptIn(ExperimentalNativeApi::class)
 @CName("metal_renderer_hit_test")
 private external fun metal_renderer_hit_test(
     renderer: Long,
@@ -311,3 +339,4 @@ private external fun metal_renderer_hit_test(
     width: Int,
     height: Int
 ): Int
+

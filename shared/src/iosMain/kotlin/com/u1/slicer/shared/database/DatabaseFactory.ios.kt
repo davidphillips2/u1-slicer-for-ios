@@ -131,8 +131,8 @@ private fun Filament_profiles.toFilamentProfile() = FilamentProfile(
     printSpeed = print_speed.toFloat(),
     retractLength = retract_length.toFloat(),
     retractSpeed = retract_speed.toFloat(),
-    color = color,
-    density = density.toFloat(),
+    color = color ?: "#808080",
+    density = density?.toFloat() ?: 1.24f,
     isDefault = is_default == 1L
 )
 

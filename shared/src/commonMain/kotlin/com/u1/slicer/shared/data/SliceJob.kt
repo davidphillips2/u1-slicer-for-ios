@@ -1,5 +1,6 @@
 package com.u1.slicer.shared.data
 
+import com.u1.slicer.shared.platform.PlatformUtils
 import kotlinx.serialization.Serializable
 
 /**
@@ -20,5 +21,5 @@ data class SliceJob(
     val bedTemp: Int,
     val supportEnabled: Boolean,
     val filamentType: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = PlatformUtils.currentTimeMillis()
 )
