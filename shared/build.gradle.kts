@@ -21,6 +21,13 @@ kotlin {
 
     // Configure iOS framework export
     iosTargets.forEach {
+        it.compilations.getByName("main") {
+            // Enable binary export
+            defaultSourceSet {
+                kotlin.srcDir("src/iosMain/kotlin")
+            }
+        }
+
         it.binaries.framework {
             baseName = iosFrameworkName
             isStatic = true
@@ -34,21 +41,6 @@ kotlin {
             export(libs.ktor.client.content.negotiation)
             export(libs.ktor.serialization.kotlinx.json)
             export(libs.sql.delight.native.driver)
-        }
-    }
-
-    // CocoaPods integration (optional, for manual Podfile setup)
-    cocoapods {
-        summary = "U1 Slicer shared code"
-        homepage = "https://github.com/davidphillips2/u1-slicer-for-ios"
-        ios.deploymentTarget = "14.0"
-        podfile = project.file("../ios/Podfile")
-        framework {
-            baseName = iosFrameworkName
-            isStatic = true
-            // Export dependencies
-            export("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-            export("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
         }
     }
 
@@ -84,6 +76,14 @@ kotlin {
             dependencies {
                 // iOS-specific implementations
                 implementation(libs.sql.delight.native.driver)
+
+                // API dependencies for framework export
+                api(libs.kotlinx.coroutines.core)
+                api(libs.kotlinx.serialization.json)
+                api(libs.ktor.client.core)
+                api(libs.ktor.client.content.negotiation)
+                api(libs.ktor.serialization.kotlinx.json)
+                api(libs.sql.delight.native.driver)
             }
         }
 

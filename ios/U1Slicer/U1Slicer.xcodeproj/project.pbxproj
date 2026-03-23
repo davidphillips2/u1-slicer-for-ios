@@ -64,6 +64,14 @@
 			path = U1Slicer;
 			sourceTree = "<group>";
 		};
+		A1000026000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1000022000000000000001 /* U1Slicer.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		A1000027000000000000001 /* App */ = {
 			isa = PBXGroup;
 			children = (
@@ -84,6 +92,22 @@
 				A1000036000000000000001 /* Components */,
 			);
 			path = UI;
+			sourceTree = "<group>";
+		};
+		A1000029000000000000001 /* Platform */ = {
+			isa = PBXGroup;
+			children = (
+				A1000020000000000000001 /* MetalMeshRenderer.swift */,
+			);
+			path = Platform;
+			sourceTree = "<group>";
+		};
+		A1000030000000000000001 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A1000021000000000000001 /* Info.plist */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		A1000031000000000000001 /* Prepare */ = {
@@ -133,30 +157,6 @@
 				A1000018000000000000001 /* Model3DView.swift */,
 			);
 			path = Components;
-			sourceTree = "<group>";
-		};
-		A1000029000000000000001 /* Platform */ = {
-			isa = PBXGroup;
-			children = (
-				A1000020000000000000001 /* MetalMeshRenderer.swift */,
-			);
-			path = Platform;
-			sourceTree = "<group>";
-		};
-		A1000030000000000000001 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				A1000021000000000000001 /* Info.plist */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		A1000026000000000000001 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				A1000022000000000000001 /* U1Slicer.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -369,7 +369,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = U1Slicer/Resources/Info.plist;
@@ -398,7 +398,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = U1Slicer/Resources/Info.plist;
@@ -423,20 +423,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A1000042000000000000001 /* Build configuration list for PBXProject "U1Slicer" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A1000043000000000000001 /* Debug */,
-				A1000044000000000000001 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		A1000038000000000000001 /* Build configuration list for PBXNativeTarget "U1Slicer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				A1000045000000000000001 /* Debug */,
 				A1000046000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000042000000000000001 /* Build configuration list for PBXProject "U1Slicer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000043000000000000001 /* Debug */,
+				A1000044000000000000001 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
