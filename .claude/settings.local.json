@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p data)",
+      "Bash(mkdir -p repository)",
+      "Bash(mkdir -p network)",
+      "Bash(mkdir -p parser)",
+      "Bash(mkdir -p viewer)",
+      "Bash(./gradlew tasks:*)",
+      "Bash(chmod +x /Users/david-mini/u1-slicer-for-android-main/gradlew)",
+      "Bash(java -version)",
+      "Bash(echo:*)",
+      "Bash(export JAVA_HOME=/opt/homebrew/opt/openjdk@17)",
+      "Bash(./gradlew :shared:compileKotlinAndroid --no-daemon)",
+      "Bash(./gradlew projects:*)",
+      "Bash(./gradlew :shared:compileDebugKotlinAndroid --no-daemon)",
+      "Bash(yes)",
+      "Bash(sdkmanager --licenses)",
+      "Bash(sdkmanager \"platform-tools\" \"platforms;android-34\" \"build-tools;34.0.0\")",
+      "Bash(grep -E \"\\(Parser|\\\\.kt$\\)\")",
+      "Bash(cd:*)",
+      "Bash(./gradlew :shared:generateDebugSqlDelightInterface --no-daemon)",
+      "Bash(./gradlew :shared:tasks --no-daemon)",
+      "Bash(./gradlew :shared:generateSqlDelightInterface --no-daemon)",
+      "Bash(./gradlew :shared:compileDebugKotlinIosArm64 --no-daemon)",
+      "Bash(./gradlew :shared:compileKotlinIosArm64 --no-daemon)",
+      "Bash(./gradlew :shared:compileDebugKotlinAndroid :shared:compileKotlinAndroid --no-daemon)",
+      "Bash(find /Users/david-mini/u1-slicer-for-android-main -name SapilWrapper.kt -o -name *Sapil*.kt)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}

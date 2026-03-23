@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml:2:13-83
+INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml:2:13-83
+	package
+		INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml
+	xmlns:android
+		ADDED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml:2:23-81
+uses-sdk
+INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml reason: use-sdk injection requested
+INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml
+INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml
+	android:targetSdkVersion
+		INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml
+	android:minSdkVersion
+		INJECTED from /Users/david-mini/u1-slicer-for-android-main/shared/build/intermediates/tmp/ProcessLibraryManifest/debug/tempAndroidManifest13813173574188174400.xml

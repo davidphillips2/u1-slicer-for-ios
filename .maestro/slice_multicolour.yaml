@@ -1,0 +1,26 @@
+appId: com.u1.slicer.orca
+---
+# E2E: load calib-cube-10-dual-colour-merged.3mf, assign 2 extruders, slice.
+# Mirrors bridge tests/multicolour-slice.spec.ts
+#
+# Prerequisites:
+#   adb push calib-cube-10-dual-colour-merged.3mf //sdcard/Download/
+#   Launch via VIEW intent for the 3MF content URI
+
+# Multi-colour detection — extruder assignment UI should appear
+- assertVisible: "Slice Model"
+- assertVisible: "Print Setup"
+- assertVisible: "Auto Map to Extruders"
+- assertVisible: "Color 1"
+- assertVisible: "Color 2"
+
+# Slice (dual-extruder should be auto-detected)
+- tapOn: "Slice Model"
+
+- extendedWaitUntil:
+    visible: "Slice Summary"
+    timeout: 180000
+
+- assertVisible: "Print"
+- assertNotVisible: "Error"
+- assertNotVisible: "failed"

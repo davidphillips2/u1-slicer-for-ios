@@ -1,0 +1,45 @@
+-- Filament profile queries
+selectAll:
+SELECT * FROM filament_profiles
+ORDER BY is_default DESC, name ASC;
+
+getById:
+SELECT * FROM filament_profiles
+WHERE id = ?;
+
+selectDefault:
+SELECT * FROM filament_profiles
+WHERE is_default = 1
+LIMIT 1;
+
+insert:
+INSERT INTO filament_profiles (
+    name, material, nozzle_temp, bed_temp, print_speed,
+    retract_length, retract_speed, color, density, is_default
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+update:
+UPDATE filament_profiles
+SET
+    name = ?,
+    material = ?,
+    nozzle_temp = ?,
+    bed_temp = ?,
+    print_speed = ?,
+    retract_length = ?,
+    retract_speed = ?,
+    color = ?,
+    density = ?,
+    is_default = ?
+WHERE id = ?;
+
+deleteById:
+DELETE FROM filament_profiles
+WHERE id = ?;
+
+deleteAll:
+DELETE FROM filament_profiles;
+
+selectLastInsertRowId:
+SELECT last_insert_rowid() AS rowid;

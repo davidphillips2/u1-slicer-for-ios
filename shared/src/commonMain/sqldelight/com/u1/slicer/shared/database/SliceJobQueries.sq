@@ -1,0 +1,30 @@
+-- Slice job queries
+selectAll:
+SELECT * FROM slice_jobs
+ORDER BY timestamp DESC;
+
+getById:
+SELECT * FROM slice_jobs
+WHERE id = ?;
+
+insert:
+INSERT INTO slice_jobs (
+    model_name, gcode_path, total_layers, estimated_time_seconds,
+    estimated_filament_mm, layer_height, fill_density,
+    nozzle_temp, bed_temp, support_enabled, filament_type, timestamp
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteById:
+DELETE FROM slice_jobs
+WHERE id = ?;
+
+deleteOlderThan:
+DELETE FROM slice_jobs
+WHERE timestamp < ?;
+
+deleteAll:
+DELETE FROM slice_jobs;
+
+selectLastInsertRowId:
+SELECT last_insert_rowid() AS rowid;

@@ -1,0 +1,31 @@
+-- Filament profiles for different materials
+CREATE TABLE filament_profiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    material TEXT NOT NULL,        -- PLA, PETG, ABS, TPU, ASA, PA, PVA
+    nozzle_temp INTEGER NOT NULL,
+    bed_temp INTEGER NOT NULL,
+    print_speed REAL NOT NULL,
+    retract_length REAL NOT NULL,
+    retract_speed REAL NOT NULL,
+    color TEXT DEFAULT '#808080',  -- Hex color for UI display
+    density REAL DEFAULT 1.24,     -- g/cm3 for weight estimation
+    is_default INTEGER DEFAULT 0
+);
+
+-- Slice job history
+CREATE TABLE slice_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model_name TEXT NOT NULL,
+    gcode_path TEXT NOT NULL,
+    total_layers INTEGER NOT NULL,
+    estimated_time_seconds REAL NOT NULL,
+    estimated_filament_mm REAL NOT NULL,
+    layer_height REAL NOT NULL,
+    fill_density REAL NOT NULL,
+    nozzle_temp INTEGER NOT NULL,
+    bed_temp INTEGER NOT NULL,
+    support_enabled INTEGER NOT NULL,
+    filament_type TEXT NOT NULL,
+    timestamp INTEGER NOT NULL
+);

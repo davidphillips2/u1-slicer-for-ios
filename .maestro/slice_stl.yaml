@@ -1,0 +1,41 @@
+appId: com.u1.slicer.orca
+---
+# E2E: load tetrahedron.stl via ADB content URI, slice it, verify result.
+# Mirrors bridge tests/stl-upload.spec.ts + slicing.spec.ts
+#
+# Prerequisites (run before this flow):
+#   adb push tetrahedron.stl //sdcard/Download/tetrahedron.stl
+#   ADB_STL_ID=$(adb shell content query --uri content://media/external/file \
+#     --projection _id:_display_name \
+#     --where "_display_name='tetrahedron.stl'" | grep -oP "_id=\K\d+")
+#   adb shell am start -n com.u1.slicer.orca/com.u1.slicer.MainActivity \
+#     -a android.intent.action.VIEW -t "application/octet-stream" \
+#     -d "content://media/external/file/$ADB_STL_ID" --grant-read-uri-permission
+
+# Model editor should show once the STL is loaded.
+- assertVisible: "Slice Model"
+- assertVisible: "Drag to move objects"
+- assertVisible: "Scale & Copies"
+
+# Scroll to slice button
+- scrollUntilVisible:
+    element:
+      text: "Slice Model"
+    direction: DOWN
+    timeout: 5000
+
+- tapOn: "Slice Model"
+
+# Wait for the finished preview/result state.
+- extendedWaitUntil:
+    visible: "Slice Summary"
+    timeout: 60000
+
+# Result summary must show layer count and time estimate
+- assertVisible: "layers"
+- assertVisible: "Est. Time"
+- assertVisible: "Print"
+
+# No crash — check no error dialog is visible
+- assertNotVisible: "Error"
+- assertNotVisible: "failed"

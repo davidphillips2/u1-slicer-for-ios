@@ -1,0 +1,27 @@
+appId: com.u1.slicer.orca
+---
+# Smoke test: app launches, shows correct title and version string.
+# Mirrors bridge tests/smoke.spec.ts
+
+- launchApp:
+    clearState: true
+
+# Title is visible
+- assertVisible: "U1 Slicer"
+
+# Version banner should show the actual core build label.
+- assertVisible:
+    text: "Snapmaker Orca 2.2.4 (Android ARM64)"
+
+# Bottom nav bar has all 5 tabs
+- assertVisible: "Prepare"
+- assertVisible: "Printer"
+- assertVisible: "Preview"
+- assertVisible: "Jobs"
+- assertVisible: "Settings"
+
+# Navigate to Settings and back
+- tapOn: "Settings"
+- assertVisible: "Settings"
+- tapOn: "Prepare"
+- assertVisible: "U1 Slicer"
