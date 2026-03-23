@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		121631582F71D5D900DC6CA8 /* SharedModule.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 121631572F71D5D900DC6CA8 /* SharedModule.framework */; };
+		121631592F71D5D900DC6CA8 /* SharedModule.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 121631572F71D5D900DC6CA8 /* SharedModule.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		A1000001000000000000001 /* U1SlicerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* U1SlicerApp.swift */; };
 		A1000003000000000000001 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004000000000000001 /* SceneDelegate.swift */; };
 		A1000005000000000000001 /* PrepareScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* PrepareScreen.swift */; };
@@ -19,7 +21,22 @@
 		A1000019000000000000001 /* MetalMeshRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000020000000000000001 /* MetalMeshRenderer.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		1216315A2F71D5D900DC6CA8 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				121631592F71D5D900DC6CA8 /* SharedModule.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		121631572F71D5D900DC6CA8 /* SharedModule.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SharedModule.framework; path = ../../shared/build/bin/iosArm64/releaseFramework/SharedModule.framework; sourceTree = "<group>"; };
 		A1000002000000000000001 /* U1SlicerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = U1SlicerApp.swift; sourceTree = "<group>"; };
 		A1000004000000000000001 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		A1000006000000000000001 /* PrepareScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrepareScreen.swift; sourceTree = "<group>"; };
@@ -39,16 +56,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				121631582F71D5D900DC6CA8 /* SharedModule.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		121631562F71D5D800DC6CA8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				121631572F71D5D900DC6CA8 /* SharedModule.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		A1000024000000000000001 = {
 			isa = PBXGroup;
 			children = (
 				A1000025000000000000001 /* U1Slicer */,
+				121631562F71D5D800DC6CA8 /* Frameworks */,
 				A1000026000000000000001 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -61,7 +88,6 @@
 				A1000029000000000000001 /* Platform */,
 				A1000030000000000000001 /* Resources */,
 			);
-			path = U1Slicer;
 			sourceTree = "<group>";
 		};
 		A1000026000000000000001 /* Products */ = {
@@ -169,6 +195,7 @@
 				A1000039000000000000001 /* Sources */,
 				A1000023000000000000001 /* Frameworks */,
 				A1000040000000000000001 /* Resources */,
+				1216315A2F71D5D900DC6CA8 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -187,7 +214,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 1500;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					A1000037000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
@@ -278,6 +305,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -301,6 +329,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -341,6 +370,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -357,6 +387,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -369,7 +400,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = U1Slicer/Resources/Info.plist;
@@ -398,7 +428,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = CSBZ6AQTZ7;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = U1Slicer/Resources/Info.plist;
