@@ -8,6 +8,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
 class PrinterRepository(
+    private val appContext: android.content.Context,
     private val client: MoonrakerClient,
     private val settingsRepo: SettingsRepository
 ) {
@@ -58,7 +59,9 @@ class PrinterRepository(
         stopPolling()
         pollingJob = scope.launch(Dispatchers.IO) {
             while (isActive) {
-                _status.value = client.getStatus()
+                val latestStatus = client.getStatus()
+                _status.value = latestStatus
+                PrintProgressNotifier.update(appContext, latestStatus)
                 val interval = if (rapidPollCyclesRemaining > 0) {
                     rapidPollCyclesRemaining--
                     500L
@@ -71,6 +74,7 @@ class PrinterRepository(
     fun stopPolling() {
         pollingJob?.cancel()
         pollingJob = null
+        PrintProgressNotifier.clear(appContext)
     }
 
     suspend fun uploadAndPrint(gcodeFile: java.io.File, filename: String): Boolean {
@@ -84,7 +88,9 @@ class PrinterRepository(
             // take several seconds on Snapmaker U1).  60 cycles × 500 ms = 30 s.
             rapidPollCyclesRemaining = 60
             // Immediate refresh so we don't wait for the next poll cycle.
-            _status.value = client.getStatus()
+            val latestStatus = client.getStatus()
+            _status.value = latestStatus
+            PrintProgressNotifier.update(appContext, latestStatus)
         }
         return started
     }

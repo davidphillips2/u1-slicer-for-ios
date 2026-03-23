@@ -12,12 +12,10 @@ appId: com.u1.slicer.orca
 #     -a android.intent.action.VIEW -t "application/octet-stream" \
 #     -d "content://media/external/file/$ADB_STL_ID" --grant-read-uri-permission
 
-- launchApp
-
-# Model info card should show
-- assertVisible: "tetrahedron.stl"
-- assertVisible: "STL"
-- assertVisible: "10.0"   # Dimensions contain 10.0 mm
+# Model editor should show once the STL is loaded.
+- assertVisible: "Slice Model"
+- assertVisible: "Drag to move objects"
+- assertVisible: "Scale & Copies"
 
 # Scroll to slice button
 - scrollUntilVisible:
@@ -28,18 +26,15 @@ appId: com.u1.slicer.orca
 
 - tapOn: "Slice Model"
 
-# Progress should appear, then complete within 60s
-- assertVisible:
-    text: "Slicing"
-    timeout: 10000
-
-- assertVisible:
-    text: "Complete"
+# Wait for the finished preview/result state.
+- extendedWaitUntil:
+    visible: "Slice Summary"
     timeout: 60000
 
 # Result summary must show layer count and time estimate
 - assertVisible: "layers"
-- assertVisible: "min"
+- assertVisible: "Est. Time"
+- assertVisible: "Print"
 
 # No crash — check no error dialog is visible
 - assertNotVisible: "Error"

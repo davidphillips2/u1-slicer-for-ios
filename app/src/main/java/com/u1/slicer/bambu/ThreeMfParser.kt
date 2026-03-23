@@ -19,6 +19,14 @@ import java.util.zip.ZipFile
 object ThreeMfParser {
     private const val TAG = "ThreeMfParser"
     private const val NS_CORE = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02"
+    private const val MAX_SAFE_SINGLE_COMPONENT_BYTES = 256L * 1024L * 1024L
+    private const val MAX_SAFE_TOTAL_COMPONENT_BYTES = 384L * 1024L * 1024L
+
+    data class ArchiveSizingRisk(
+        val largestComponentEntry: String,
+        val largestComponentBytes: Long,
+        val totalComponentBytes: Long
+    )
 
     // Bambu detection markers
     private val BAMBU_MARKERS = setOf(
@@ -26,6 +34,41 @@ object ThreeMfParser {
         "Metadata/slice_info.config",
         "Metadata/filament_sequence.json"
     )
+
+    fun inspectArchiveSizing(file: File): ArchiveSizingRisk? {
+        if (!file.exists() || !file.name.endsWith(".3mf", ignoreCase = true)) return null
+        return try {
+            ZipFile(file).use { zip ->
+                assessArchiveSizing(
+                    zip.entries().toList().map { it.name to it.size }
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    internal fun assessArchiveSizing(entries: List<Pair<String, Long>>): ArchiveSizingRisk? {
+        val componentEntries = entries.filter { (name, size) ->
+            name.endsWith(".model", ignoreCase = true) &&
+                name != "3D/3dmodel.model" &&
+                size > 0
+        }
+        if (componentEntries.isEmpty()) return null
+
+        val largest = componentEntries.maxByOrNull { it.second } ?: return null
+        val total = componentEntries.sumOf { it.second }
+        if (largest.second <= MAX_SAFE_SINGLE_COMPONENT_BYTES &&
+            total <= MAX_SAFE_TOTAL_COMPONENT_BYTES
+        ) {
+            return null
+        }
+        return ArchiveSizingRisk(
+            largestComponentEntry = largest.first,
+            largestComponentBytes = largest.second,
+            totalComponentBytes = total
+        )
+    }
 
     fun parse(file: File, skipPaintDetection: Boolean = false): ThreeMfInfo {
         if (!file.exists() || !file.name.endsWith(".3mf", ignoreCase = true)) {
@@ -46,9 +89,8 @@ object ThreeMfParser {
                 val modelEntry = zip.getEntry("3D/3dmodel.model")
                     ?: return ThreeMfInfo(emptyList(), emptyList(), isBambu, false)
 
-                val modelBytes = zip.getInputStream(modelEntry).readBytes()
-                val objects = parseObjects(modelBytes)
-                val buildItems = parseBuildItems(modelBytes)
+                val objects = zip.getInputStream(modelEntry).use(::parseObjects)
+                val buildItems = zip.getInputStream(modelEntry).use(::parseBuildItems)
 
                 // Multi-plate detection: two complementary signals are checked.
                 //
@@ -104,7 +146,7 @@ object ThreeMfParser {
                 // paint_color attributes on triangles in the component files
                 // (3D/Objects/*.model), not in the main 3D/3dmodel.model.
                 val hasPaintData = if (skipPaintDetection) false else {
-                    detectPaintData(modelBytes) ||
+                    zip.getInputStream(modelEntry).use(::streamDetectPaintData) ||
                         zip.entries().toList().any { e ->
                             e.name.endsWith(".model") && e.name != "3D/3dmodel.model" &&
                                 streamDetectPaintData(zip.getInputStream(e))
@@ -264,8 +306,7 @@ object ThreeMfParser {
             ZipFile(file).use { zip ->
                 val entryNames = zip.entries().toList().map { it.name }.toSet()
                 val isBambu = entryNames.any { it in BAMBU_MARKERS }
-                val modelBytes = zip.getEntry("3D/3dmodel.model")
-                    ?.let { zip.getInputStream(it).readBytes() }
+                val modelEntry = zip.getEntry("3D/3dmodel.model")
 
                 val plateNames = mutableMapOf<Int, String>()
                 val objectNames = mutableMapOf<String, String>()
@@ -293,10 +334,12 @@ object ThreeMfParser {
                 // which only tracks max-per-object and misses multi-part colours.
                 val uniqueExtruders = if (allExtruderValues.isNotEmpty())
                     allExtruderValues else extruderAssignments.values.toSet()
-                val componentPathsByObject = modelBytes?.let { parseComponentPaths(it) }.orEmpty()
+                val componentPathsByObject = modelEntry
+                    ?.let { entry -> zip.getInputStream(entry).use(::parseComponentPaths) }
+                    .orEmpty()
                 val visualColorCountByPlate = computeVisualColorCountByPlate(
                     zip = zip,
-                    modelBytes = modelBytes,
+                    modelEntry = modelEntry,
                     plateObjectMap = plateObjectMap,
                     componentPathsByObject = componentPathsByObject,
                     extruderAssignments = extruderAssignments
@@ -337,9 +380,9 @@ object ThreeMfParser {
         val transform: FloatArray
     )
 
-    private fun parseObjects(modelBytes: ByteArray): List<ThreeMfObject> {
+    private fun parseObjects(inputStream: InputStream): List<ThreeMfObject> {
         val objects = mutableListOf<ThreeMfObject>()
-        val parser = createParser(modelBytes.inputStream())
+        val parser = createParser(inputStream)
 
         var inResources = false
         var currentObjectId: String? = null
@@ -384,9 +427,9 @@ object ThreeMfParser {
         return objects
     }
 
-    private fun parseBuildItems(modelBytes: ByteArray): List<BuildItem> {
+    private fun parseBuildItems(inputStream: InputStream): List<BuildItem> {
         val items = mutableListOf<BuildItem>()
-        val parser = createParser(modelBytes.inputStream())
+        val parser = createParser(inputStream)
 
         var inBuild = false
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {
@@ -409,9 +452,9 @@ object ThreeMfParser {
         return items
     }
 
-    private fun parseComponentPaths(modelBytes: ByteArray): Map<String, List<String>> {
+    private fun parseComponentPaths(inputStream: InputStream): Map<String, List<String>> {
         val componentPaths = mutableMapOf<String, MutableList<String>>()
-        val parser = createParser(modelBytes.inputStream())
+        val parser = createParser(inputStream)
         var currentObjectId: String? = null
 
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {
@@ -438,12 +481,6 @@ object ThreeMfParser {
         }
 
         return componentPaths
-    }
-
-    private fun detectPaintData(modelBytes: ByteArray): Boolean {
-        // Scan for paint_color or mmu_segmentation attributes
-        val content = String(modelBytes, Charsets.UTF_8)
-        return content.contains("paint_color") || content.contains("mmu_segmentation")
     }
 
     /**
@@ -500,15 +537,15 @@ object ThreeMfParser {
 
     private fun computeVisualColorCountByPlate(
         zip: ZipFile,
-        modelBytes: ByteArray?,
+        modelEntry: java.util.zip.ZipEntry?,
         plateObjectMap: Map<Int, List<String>>,
         componentPathsByObject: Map<String, List<String>>,
         extruderAssignments: Map<String, Int>
     ): Map<Int, Int> {
-        val fallbackPlateObjectMap = if (plateObjectMap.isNotEmpty() || modelBytes == null) {
+        val fallbackPlateObjectMap = if (plateObjectMap.isNotEmpty() || modelEntry == null) {
             plateObjectMap
         } else {
-            parseBuildItems(modelBytes).mapIndexed { index, item ->
+            zip.getInputStream(modelEntry).use(::parseBuildItems).mapIndexed { index, item ->
                 (index + 1) to listOf(item.objectId)
             }.toMap()
         }

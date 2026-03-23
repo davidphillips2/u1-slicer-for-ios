@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontFamily
@@ -38,6 +37,7 @@ import kotlin.math.roundToInt
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.core.content.pm.PackageInfoCompat
 import com.u1.slicer.data.ModelInfo
 import com.u1.slicer.data.SliceResult
 import com.u1.slicer.debug.TestCommandReceiver
@@ -136,7 +136,9 @@ class MainActivity : ComponentActivity() {
     private fun clearStaleCacheOnUpgrade(): Boolean {
         val prefs = getSharedPreferences("upgrade_state", MODE_PRIVATE)
         val currentVersion = try {
-            packageManager.getPackageInfo(packageName, 0).longVersionCode.toInt()
+            PackageInfoCompat.getLongVersionCode(
+                packageManager.getPackageInfo(packageName, 0)
+            ).toInt()
         } catch (_: Exception) { -1 }
         val apkLastUpdate = try {
             packageManager.getPackageInfo(packageName, 0).lastUpdateTime
@@ -544,6 +546,7 @@ fun PrepareScreen(
     val slicingOverrides by viewModel.slicingOverrides.collectAsState()
     val plateType by viewModel.plateType.collectAsState()
     val coreVersion by viewModel.coreVersion.collectAsState()
+    val modelInfo by viewModel.modelInfo.collectAsState()
     val showPlateSelector by viewModel.showPlateSelector.collectAsState()
     val showMultiColorDialog by viewModel.showMultiColorDialog.collectAsState()
     val colorMapping by viewModel.colorMapping.collectAsState()
@@ -672,12 +675,7 @@ fun PrepareScreen(
                         )
                     }
                     modelLoaded -> {
-                        val info = when (val s = state) {
-                            is SlicerViewModel.SlicerState.ModelLoaded -> s.info
-                            is SlicerViewModel.SlicerState.Slicing -> null
-                            is SlicerViewModel.SlicerState.SliceComplete -> null
-                            else -> null
-                        }
+                        val info = resolvePreparePreviewModelInfo(state, modelInfo)
                         // Inline 3D model preview
                         val modelPath = viewModel.previewModelPath
                         if (modelPath != null && (
@@ -2001,12 +1999,20 @@ fun InlineModelPreview(
                     color = Color.White.copy(alpha = 0.7f)
                 )
             }
-            if (viewerLoading) {
+            if (viewerLoading && !previewTooLarge) {
                 ViewerLoadingOverlay("Preparing preview…")
             }
-            if (!viewerLoading && previewTooLarge) {
+            if (previewTooLarge) {
                 LargePreviewFallback(
                     triangleCount = modelTriangleCount,
+                    modelSizeX = modelSizeX * modelScale.x,
+                    modelSizeY = modelSizeY * modelScale.y,
+                    objectPositions = objPositions.copyOf(),
+                    wipeTowerVisible = placementConfig.wipeTowerVisible,
+                    wipeTowerWidth = wipeTowerWidth,
+                    initialTowerX = towerX,
+                    initialTowerY = towerY,
+                    onPositionsChanged = onPositionsChanged,
                     onInfoClick = onInfoClick
                 )
             }
@@ -2058,52 +2064,116 @@ internal fun buildPreparePreviewPlacementConfig(
     )
 }
 
+internal fun resolvePreparePreviewModelInfo(
+    state: SlicerViewModel.SlicerState,
+    cachedModelInfo: ModelInfo?
+): ModelInfo? = when (state) {
+    is SlicerViewModel.SlicerState.ModelLoaded -> state.info
+    is SlicerViewModel.SlicerState.Slicing -> cachedModelInfo
+    is SlicerViewModel.SlicerState.SliceComplete -> cachedModelInfo
+    else -> cachedModelInfo
+}
+
 @Composable
 private fun LargePreviewFallback(
     triangleCount: Int,
+    modelSizeX: Float,
+    modelSizeY: Float,
+    objectPositions: FloatArray,
+    wipeTowerVisible: Boolean,
+    wipeTowerWidth: Float,
+    initialTowerX: Float,
+    initialTowerY: Float,
+    onPositionsChanged: ((FloatArray, Pair<Float, Float>) -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.34f)),
-        contentAlignment = Alignment.Center
-    ) {
+    val objPositions = remember(objectPositions) { objectPositions.copyOf() }
+    var towerX by remember(initialTowerX) { mutableFloatStateOf(initialTowerX) }
+    var towerY by remember(initialTowerY) { mutableFloatStateOf(initialTowerY) }
+    var draggingIdx by remember { mutableIntStateOf(-1) }
+    var showInfoDialog by remember { mutableStateOf(true) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        com.u1.slicer.ui.SimplifiedPlacementBed(
+            modifier = Modifier.fillMaxSize(),
+            modelSizeX = modelSizeX,
+            modelSizeY = modelSizeY,
+            copyCount = objPositions.size / 2,
+            wipeTowerEnabled = wipeTowerVisible,
+            wipeTowerWidthMm = wipeTowerWidth,
+            objectX = List(objPositions.size / 2) { idx -> objPositions[idx * 2] },
+            objectY = List(objPositions.size / 2) { idx -> objPositions[idx * 2 + 1] },
+            towerX = towerX,
+            towerY = towerY,
+            draggingIdx = draggingIdx,
+            onDraggingIdxChange = { draggingIdx = it },
+            onObjectMove = { index, x, y ->
+                objPositions[index * 2] = x
+                objPositions[index * 2 + 1] = y
+                onPositionsChanged?.invoke(objPositions.copyOf(), Pair(towerX, towerY))
+            },
+            onTowerMove = { x, y ->
+                towerX = x
+                towerY = y
+                onPositionsChanged?.invoke(objPositions.copyOf(), Pair(towerX, towerY))
+            }
+        )
+
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color.Black.copy(alpha = 0.64f),
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(8.dp),
+            shape = RoundedCornerShape(999.dp),
+            color = Color.Black.copy(alpha = 0.72f)
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            Row(
+                modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Icon(
-                    Icons.Default.Dataset,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.92f),
-                    modifier = Modifier.size(24.dp)
-                )
                 Text(
-                    "Preview skipped for this large model",
-                    color = Color.White,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    textAlign = TextAlign.Center
-                )
-                Text(
-                    "This file has %,d triangles, so building the full 3D Prepare preview would risk running out of memory on-device.".format(triangleCount),
-                    color = Color.White.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center
+                    "Lightweight preview",
+                    color = Color.White.copy(alpha = 0.9f),
+                    style = MaterialTheme.typography.labelSmall
                 )
                 if (onInfoClick != null) {
-                    TextButton(onClick = onInfoClick) {
-                        Text("Show model info")
+                    IconButton(
+                        onClick = onInfoClick,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Info,
+                            contentDescription = "Preview info",
+                            tint = Color.White.copy(alpha = 0.9f)
+                        )
                     }
                 }
             }
+        }
+
+        if (showInfoDialog) {
+            AlertDialog(
+                onDismissRequest = { showInfoDialog = false },
+                title = { Text("Lightweight preview") },
+                text = {
+                    Text(
+                        "This file has %,d triangles, so the full 3D Prepare preview is skipped to keep memory use low. You can still drag the model footprint and wipe tower on the bed."
+                            .format(triangleCount)
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { showInfoDialog = false }) {
+                        Text("Close")
+                    }
+                },
+                dismissButton = if (onInfoClick != null) {
+                    {
+                        TextButton(onClick = onInfoClick) {
+                            Text("Model info")
+                        }
+                    }
+                } else null
+            )
         }
     }
 }
@@ -2594,7 +2664,7 @@ fun InlineGcodePreview(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    BoxWithConstraints(
+                    Box(
                         modifier = Modifier.fillMaxWidth(),
                         contentAlignment = Alignment.Center
                     ) {

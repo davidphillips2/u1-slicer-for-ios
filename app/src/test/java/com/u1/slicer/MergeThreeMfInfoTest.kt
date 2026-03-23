@@ -232,30 +232,6 @@ class MergeThreeMfInfoTest {
     }
 
     @Test
-    fun `shouldWarmReloadAfterUpgrade is disabled to prevent Clipper crashes`() {
-        // Warm reload after upgrade was causing Clipper overflow crashes (B31).
-        // All combinations should return false now.
-        assertFalse(
-            SlicerViewModel.shouldWarmReloadAfterUpgrade(
-                sessionHasPostUpgradeGuard = true,
-                firstModelLoadThisLaunch = true
-            )
-        )
-        assertFalse(
-            SlicerViewModel.shouldWarmReloadAfterUpgrade(
-                sessionHasPostUpgradeGuard = false,
-                firstModelLoadThisLaunch = true
-            )
-        )
-        assertFalse(
-            SlicerViewModel.shouldWarmReloadAfterUpgrade(
-                sessionHasPostUpgradeGuard = true,
-                firstModelLoadThisLaunch = false
-            )
-        )
-    }
-
-    @Test
     fun `buildCompactExtruderRemap compacts original extruders to chosen slot order`() {
         val info = ThreeMfInfo(
             objects = emptyList(),

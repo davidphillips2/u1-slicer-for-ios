@@ -475,7 +475,10 @@ class ProfileEmbedder(private val context: Context) {
                         // - Preserve p:path and xmlns:p (needed for component file refs).
                         // - Strip PrusaSlicer slic3rpe:mmu_segmentation for paint-data files.
                         name.endsWith(".model") -> {
-                            if (name != "3D/3dmodel.model" && entry.method == ZipEntry.STORED && !info.hasPaintData) {
+                            if (name == "3D/3dmodel.model" && entry.size > 50_000_000L) {
+                                // Giant main model: stream-clean to avoid buffering hundreds of MB.
+                                streamCleanEntry(srcZip, entry, destZip, info.hasPaintData)
+                            } else if (name != "3D/3dmodel.model" && entry.method == ZipEntry.STORED && !info.hasPaintData) {
                                 // Component .model files already STORED by BambuSanitizer —
                                 // raw-copy to avoid expensive regex cleaning on large meshes.
                                 // restructurePlateFile() will clean when inlining later.

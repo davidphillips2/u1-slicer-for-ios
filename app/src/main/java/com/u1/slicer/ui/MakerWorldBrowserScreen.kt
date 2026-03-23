@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
+import android.os.Message
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -120,7 +121,10 @@ fun MakerWorldBrowserScreen(
                         )
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        settings.javaScriptCanOpenWindowsAutomatically = true
+                        settings.setSupportMultipleWindows(true)
                         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                        val mainWebView = this
 
                         webViewClient = object : WebViewClient() {
                             override fun shouldOverrideUrlLoading(
@@ -152,9 +156,50 @@ fun MakerWorldBrowserScreen(
                             }
                         }
 
-                        // Note: onCreateWindow is not overridden. Social login
-                        // (Google/Facebook/Apple) may fail silently in this WebView.
-                        webChromeClient = WebChromeClient()
+                        webChromeClient = object : WebChromeClient() {
+                            override fun onCreateWindow(
+                                view: WebView?,
+                                isDialog: Boolean,
+                                isUserGesture: Boolean,
+                                resultMsg: Message?
+                            ): Boolean {
+                                val popupWebView = WebView(ctx).apply {
+                                    settings.javaScriptEnabled = true
+                                    settings.domStorageEnabled = true
+                                    settings.javaScriptCanOpenWindowsAutomatically = true
+                                    settings.setSupportMultipleWindows(true)
+                                    CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                                    webViewClient = object : WebViewClient() {
+                                        override fun shouldOverrideUrlLoading(
+                                            popupView: WebView?,
+                                            request: WebResourceRequest?
+                                        ): Boolean {
+                                            val targetUrl = request?.url?.toString() ?: return false
+                                            mainWebView.loadUrl(targetUrl)
+                                            popupView?.destroy()
+                                            return true
+                                        }
+
+                                        override fun onPageStarted(
+                                            popupView: WebView?,
+                                            url: String?,
+                                            favicon: Bitmap?
+                                        ) {
+                                            if (url.isNullOrBlank()) return
+                                            mainWebView.loadUrl(url)
+                                            popupView?.stopLoading()
+                                            popupView?.destroy()
+                                        }
+                                    }
+                                }
+
+                                val transport = resultMsg?.obj as? WebView.WebViewTransport
+                                    ?: return false
+                                transport.webView = popupWebView
+                                resultMsg.sendToTarget()
+                                return true
+                            }
+                        }
 
                         setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
                             val filename = sanitizeFilename(

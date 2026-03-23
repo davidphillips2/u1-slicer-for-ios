@@ -14,6 +14,11 @@ Open bugs, features, and investigations. Everything else is done — see git log
 - This file is ~103 MB compressed and contains a `3D/Objects/object_9.model` entry that expands to ~680 MB
 - Also reproduced via MakerWorld WebView download: `super clean.3mf` (58 MB compressed, native tried to allocate 331 MB → OOM with 187 MB free)
 - Investigate memory usage across import, sanitize, embed, and native load for giant component-model files
+- Mitigations landed in `v1.4.27-dev`:
+  - Prepare now falls back to a simplified top-down bed preview for large models so model footprints and the wipe tower can still be moved when the full mesh preview is skipped
+  - 3MF imports now preflight ZIP entry sizes and reject obviously oversized embedded component archives before sanitize/embed/native load
+  - Manual batch coverage now includes `2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf` and `super clean.3mf` as the two large-file regressions that should keep being checked on-device
+- Still open: genuinely large-but-not-rejected archives may still pressure memory during sanitize or native load, so the issue is reduced but not fully closed
 
 ### B31: First slip/slide slice can hit a native Clipper range crash — FIXED v1.4.20
 - Root cause: ARM64 FCVTZS saturation producing INT64_MIN/MAX in Clipper `IntersectPoint` vertical-edge paths and `Round<int64_t>()` for large-but-finite doubles
@@ -29,27 +34,25 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ### C1: Remove dead warm-reload and upgrade-guard machinery
 - `shouldWarmReloadAfterUpgrade()` now always returns false (disabled in v1.4.24)
+- Partial cleanup landed in `v1.4.27-dev`:
+  - removed dead `shouldWarmReloadAfterUpgrade()` helpers from `SlicerViewModel`
+  - removed dead `warmReloadNativeModelAfterUpgrade()` path
+  - removed the obsolete warm-reload test
 - Code to remove or simplify:
-  - `warmReloadNativeModelAfterUpgrade()` in `SlicerViewModel.kt:2142-2159` — dead method
-  - `shouldWarmReloadAfterUpgrade()` — both companion object (line 2107) and instance method (line 2130)
-  - `post_upgrade_model_warm_reload` diagnostics event — never fires
-  - `post_upgrade_slice_settled` guard settling logic in slice path — audit if still needed
-  - `sessionHasPostUpgradeGuard` in `DiagnosticsStore` — audit if anything else depends on it
+  - `post_upgrade_slice_settled` guard settling logic in slice path — now diagnostics-only, audit if still worth keeping
+  - `sessionHasPostUpgradeGuard` in `DiagnosticsStore` — now diagnostics-only, audit if anything else depends on it
   - `clipperRetryAttempted` and `clipper_recovery_restart` machinery — may still be needed for non-upgrade Clipper errors, audit before removing
-  - The test in `MergeThreeMfInfoTest.kt:234` can be removed entirely
 - **Caution**: `clipperRetryAttempted` may protect against Clipper edge cases unrelated to upgrades — verify before removing
 
 ## Open Features
 
-### F44: Push notifications for print progress (GitHub #13)
-- Show Android notifications with print progress percentage
-- Persistent notification in notification panel during active prints
-- Requires a foreground service or WorkManager polling of Moonraker status
-
 ### F45: Bambu printer support (GitHub #16)
 - Add support for Bambu Lab printers (communication protocol differs from Moonraker)
 - Consider allowing upload of arbitrary OrcaSlicer printer configs
-- Significant scope — needs investigation of Bambu MQTT/cloud protocol
+- Backburner: Bambu's 2025 auth changes appear to block third-party LAN print-start on secured firmware unless the printer is put into `Developer Mode`
+- Likely viable scope is only `LAN + Developer Mode`; stock secured firmware support is probably not realistic for this Android app
+- Monitoring-only support may be possible without Developer Mode, but direct send/start is the critical blocker
+- Significant scope — needs investigation of Bambu MQTT/cloud protocol and an explicit product decision on whether `Developer Mode` is acceptable
 
 ### F14: Mixed-colour / pseudo-extruder support (FullSpectrum fork) (GitHub #18)
 - Source: ratdoux/OrcaSlicer-FullSpectrum — fork of Snapmaker Orca 2.2.4
@@ -60,6 +63,7 @@ Open bugs, features, and investigations. Everything else is done — see git log
 
 ## Closed (recent)
 See git log for full history. Most recent fixes:
+- **F44**: Print progress notifications — printer polling now updates an ongoing Android notification for active and paused prints with current progress, without needing a separate foreground polling service — DONE v1.4.27-dev
 - **Backup import skirt regression**: importing an older settings backup could restore stale `skirtLoops=1` into the live in-memory config for the current session, causing unexpected skirts despite the repository default being forced to 0; imports are now normalized and covered by a regression test — FIXED v1.4.26
 - **F41/F42/F43**: Added Reduce Infill Retraction toggle, Wall Generator + Seam Position overrides, native fallback/profile-key support, and inline embedded 3MF file values on Prepare override rows via `sourceConfig` threading — DONE v1.4.26
 - **F40**: MakerWorld in-app browser — browse, log in via Bambu SSO, download 3MF/STL directly into slicer; auth cookies silently extracted for share-URL pipeline; cookie info dialog + file import as fallback — DONE v1.4.23

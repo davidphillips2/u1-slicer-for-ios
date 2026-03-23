@@ -3,6 +3,7 @@ package com.u1.slicer
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Process
+import androidx.core.content.pm.PackageInfoCompat
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -184,7 +185,7 @@ class DiagnosticsStore(private val context: Context) {
         obj.put("sessionId", sessionId)
         obj.put("pid", Process.myPid())
         obj.put("appVersion", BuildConfig.VERSION_NAME)
-        obj.put("versionCode", packageInfo.longVersionCode)
+        obj.put("versionCode", PackageInfoCompat.getLongVersionCode(packageInfo))
         obj.put("apkLastUpdateTime", packageInfo.lastUpdateTime)
         obj.put("buildType", if (BuildConfig.DEBUG) "debug" else "release")
         obj.put("sessionHasPostUpgradeGuard", sessionHasPostUpgradeGuard)
@@ -214,7 +215,7 @@ class DiagnosticsStore(private val context: Context) {
         marker.put("sessionId", sessionId)
         marker.put("pid", Process.myPid())
         marker.put("appVersion", BuildConfig.VERSION_NAME)
-        marker.put("versionCode", packageInfo.longVersionCode)
+        marker.put("versionCode", PackageInfoCompat.getLongVersionCode(packageInfo))
         marker.put("apkLastUpdateTime", packageInfo.lastUpdateTime)
         marker.put("nativeGeneration", nativeState?.optString("nativeGeneration"))
         return prefs.edit().putString(KEY_PENDING_RESTART, marker.toString()).commit()
@@ -268,7 +269,7 @@ class DiagnosticsStore(private val context: Context) {
             appendLine("sessionId=$sessionId")
             appendLine("pid=${Process.myPid()}")
             appendLine("appVersion=${BuildConfig.VERSION_NAME}")
-            appendLine("versionCode=${packageInfo.longVersionCode}")
+            appendLine("versionCode=${PackageInfoCompat.getLongVersionCode(packageInfo)}")
             appendLine("apkLastUpdateTime=${packageInfo.lastUpdateTime}")
             appendLine("buildType=${if (BuildConfig.DEBUG) "debug" else "release"}")
             appendLine("sessionHasPostUpgradeGuard=$sessionHasPostUpgradeGuard")

@@ -1,13 +1,13 @@
 # U1 Slicer - E2E Testing
 
-Current release line: `v1.4.21` (`versionCode 110`)
+Current release line: `v1.4.27` (`versionCode 116`)
 Primary test device: See `E2E_TESTING.local.md` for the private device IDs used on this machine.
 
 ## Automated baseline
 
-- JVM unit tests: `468`
-- Instrumented tests: `118`
-- Full automated total: `586`
+- JVM unit tests: `517`
+- Instrumented tests: `125`
+- Full automated total: `642`
 
 Run before release:
 
@@ -53,6 +53,9 @@ These are the files most likely to catch regressions quickly:
 | `3DBenchy-H2C-Multi-Color-Test-Print.3mf` | H2C sparse paint / 7-colour mapping | Prepare vs Preview colour parity |
 | `colored_3DBenchy (1).3mf` | Non-H2C painted benchy baseline | Prepare colours, slice |
 | `2026+F1+CALENDAR+-+DATES+&+TRACK+NAMES+(P_X+SERIES).3mf` | Large Bambu file / former B18 OOM repro | Loads without OOM, slice preserves multi-colour output |
+| `super clean.3mf` | Huge single-model 3MF / former sanitize+embed OOM repro | Loads without OOM, preview fallback still works |
+
+For batch coverage, keep the two large-model regressions above in the manual E2E set even when smaller smoke files are already passing.
 
 ## What automation already covers well
 
@@ -62,6 +65,7 @@ These are the files most likely to catch regressions quickly:
 - Dragon plate 3 Prepare state and slice-output colour coverage
 - G-code generation and tool-remap behaviour
 - Large-model preview budget guardrails
+- Large 3MF sanitize/embed memory regressions now have dedicated manual repros in the batch set
 
 ## What still benefits from manual verification
 

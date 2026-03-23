@@ -8,10 +8,9 @@ appId: com.u1.slicer.orca
 #   adb push u1-auxiliary-fan-cover-hex_mw.3mf //sdcard/Download/
 #   Get content URI ID and launch as VIEW intent (see slice_stl.yaml)
 
-- launchApp
-
-# Model loaded
-- assertVisible: "3MF"
+# Model editor should show once the 3MF is loaded.
+- assertVisible: "Slice Model"
+- assertVisible: "Scale & Copies"
 
 # Scroll to slice
 - scrollUntilVisible:
@@ -22,16 +21,12 @@ appId: com.u1.slicer.orca
 
 - tapOn: "Slice Model"
 
-# Slicing in progress
-- assertVisible:
-    text: "Slicing"
-    timeout: 10000
-
-# Complete within 3 minutes
-- assertVisible:
-    text: "Complete"
+# Wait for the finished preview/result state.
+- extendedWaitUntil:
+    visible: "Slice Summary"
     timeout: 180000
 
 # Result shown
 - assertVisible: "layers"
+- assertVisible: "Print"
 - assertNotVisible: "Error"

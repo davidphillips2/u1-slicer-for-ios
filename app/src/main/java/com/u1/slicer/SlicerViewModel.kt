@@ -180,6 +180,8 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
     private var currentModelFile: File? = null
     private var currentModelName: String = ""
     private var lastModelInfo: ModelInfo? = null
+    private val _modelInfo = MutableStateFlow<ModelInfo?>(null)
+    val modelInfo: StateFlow<ModelInfo?> = _modelInfo.asStateFlow()
 
     // Source file and info before embedding — kept so we can re-embed with extruder remap
     // when the user sets non-identity slot assignments after initial load.
@@ -423,6 +425,19 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
+                oversizedArchiveMessage(outputFile)?.let { message ->
+                    Log.w("SlicerVM", "Large MakerWorld 3MF will try to load anyway: $message")
+                    diagnostics.recordEvent(
+                        "oversized_archive_warning",
+                        mapOf(
+                            "source" to "makerworld",
+                            "designId" to designId,
+                            "instanceId" to instanceId,
+                            "sizeBytes" to outputFile.length()
+                        )
+                    )
+                }
+
                 Log.i("SlicerVM", "Downloaded MakerWorld #$designId: ${outputFile.length()} bytes")
                 currentModelName = "makerworld_${designId}.3mf"
                 diagnostics.recordEvent(
@@ -489,7 +504,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
-                val filename = getDisplayName(context, uri) ?: "model.stl"
+                val filename = normalizeIncomingFilename(getDisplayName(context, uri) ?: "model.stl")
                 currentModelName = filename
                 _state.value = SlicerState.Loading("Loading $filename…")
                 val file = File(context.filesDir, filename)
@@ -529,6 +544,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     } catch (e: java.util.zip.ZipException) {
                         _state.value = SlicerState.Error("3MF file is corrupt: ${e.message}")
                         return@launch
+                    }
+
+                    oversizedArchiveMessage(file)?.let { message ->
+                        Log.w("SlicerVM", "Large 3MF will try to load anyway: $message")
+                        diagnostics.recordEvent(
+                            "oversized_archive_warning",
+                            mapOf(
+                                "source" to "picker",
+                                "filename" to filename,
+                                "sizeBytes" to file.length()
+                            )
+                        )
                     }
 
                     // Parse original file first for multi-plate detection (process()
@@ -653,7 +680,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     return@launch
                 }
 
-                val filename = file.name
+                val filename = normalizeIncomingFilename(file.name)
                 currentModelName = filename
                 _state.value = SlicerState.Loading("Loading $filename…")
 
@@ -680,6 +707,18 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                     } catch (e: java.util.zip.ZipException) {
                         _state.value = SlicerState.Error("3MF file is corrupt: ${e.message}")
                         return@launch
+                    }
+
+                    oversizedArchiveMessage(file)?.let { message ->
+                        Log.w("SlicerVM", "Large direct 3MF will try to load anyway: $message")
+                        diagnostics.recordEvent(
+                            "oversized_archive_warning",
+                            mapOf(
+                                "source" to "direct_file",
+                                "filename" to filename,
+                                "sizeBytes" to file.length()
+                            )
+                        )
                     }
 
                     val origInfo = ThreeMfParser.parse(file)
@@ -791,6 +830,17 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private fun oversizedArchiveMessage(file: File): String? {
+        val risk = ThreeMfParser.inspectArchiveSizing(file) ?: return null
+        val largestMiB = risk.largestComponentBytes / (1024L * 1024L)
+        val totalMiB = risk.totalComponentBytes / (1024L * 1024L)
+        return buildString {
+            append("This 3MF contains very large embedded component models ")
+            append("($largestMiB MiB largest, $totalMiB MiB total) and is likely to run out of memory on-device.")
+            append(" Try exporting a simpler plate or a flattened 3MF first.")
+        }
+    }
+
     fun dismissPlateSelector() {
         _showPlateSelector.value = false
         // Cancel the load — multi-plate files need a plate selection to work correctly.
@@ -804,7 +854,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun loadNativeModel(file: File) {
         val firstModelLoadThisLaunch = diagnostics.markFirstModelLoad()
-        var success = native.loadModel(file.absolutePath)
+        val success = native.loadModel(file.absolutePath)
         diagnostics.recordEvent(
             "native_model_load",
             mapOf(
@@ -813,14 +863,12 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 "firstModelLoadThisLaunch" to firstModelLoadThisLaunch
             )
         )
-        if (success && shouldWarmReloadAfterUpgrade(firstModelLoadThisLaunch)) {
-            success = warmReloadNativeModelAfterUpgrade(file)
-        }
         if (success) {
             profileNeedsReEmbed = false  // Profile is current — just embedded
             val info = native.getModelInfo()
             if (info != null) {
                 lastModelInfo = info
+                _modelInfo.value = info
                 _modelScale.value = ModelScale()  // reset to 1× on each new load
                 _state.value = SlicerState.ModelLoaded(info)
 
@@ -1876,6 +1924,7 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         _showMultiColorDialog.value = false
         currentModelFile = null
         lastModelInfo = null
+        _modelInfo.value = null
         _copyCount.value = 1
         customObjectPositions = null
         customWipeTowerPos = null
@@ -1988,6 +2037,16 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
             val ext = filename.substringAfterLast('.', "").lowercase()
             return ext in SUPPORTED_EXTENSIONS
         }
+
+        /**
+         * Normalize filenames coming from Android download/content providers.
+         *
+         * Some download sources append RFC 5987 style metadata after the visible name,
+         * e.g. "super+clean.3mf;filename*=utf-8''super+clean.3mf".
+         * We only care about the display name before that suffix.
+         */
+        internal fun normalizeIncomingFilename(filename: String): String =
+            filename.substringBefore(";filename", filename)
 
         /**
          * Merges a sanitized ThreeMfInfo (processedInfo) with the original parse (origInfo).
@@ -2112,17 +2171,6 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
                 anyString(config["change_filament_gcode"]) { it.contains("H2C filament_change") }
         }
 
-        internal fun shouldWarmReloadAfterUpgrade(
-            @Suppress("UNUSED_PARAMETER") sessionHasPostUpgradeGuard: Boolean,
-            @Suppress("UNUSED_PARAMETER") firstModelLoadThisLaunch: Boolean
-        ): Boolean {
-            // Disabled: the warm reload after APK upgrade was causing Clipper overflow
-            // crashes (B31). The native engine gets into a bad state when clearModel() +
-            // loadModel() runs during the post-upgrade guard phase. Simply loading the
-            // model normally (without the extra clear/reload cycle) is stable.
-            return false
-        }
-
         internal fun buildPreviewSlotColors(
             extruderPresets: List<com.u1.slicer.data.ExtruderPreset>,
             usedSlots: List<Int>
@@ -2139,36 +2187,6 @@ class SlicerViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private fun shouldWarmReloadAfterUpgrade(firstModelLoadThisLaunch: Boolean): Boolean {
-        return shouldWarmReloadAfterUpgrade(
-            sessionHasPostUpgradeGuard = diagnostics.sessionHasPostUpgradeGuard(),
-            firstModelLoadThisLaunch = firstModelLoadThisLaunch
-        )
-    }
-
-    /**
-     * The first post-upgrade slice can still hit an intermittent native Clipper failure even
-     * after the process restart. Rebuilding the native model state once more on the first model
-     * load of that guarded session mirrors the recovery path that makes the next slice succeed.
-     */
-    private fun warmReloadNativeModelAfterUpgrade(file: File): Boolean {
-        native.clearModel()
-        val reloadOk = native.loadModel(file.absolutePath)
-        diagnostics.recordEvent(
-            "post_upgrade_model_warm_reload",
-            mapOf(
-                "path" to file.absolutePath,
-                "success" to reloadOk,
-                "nativeState" to safeNativeDiagnosticsState()
-            )
-        )
-        if (reloadOk) {
-            native.getModelInfo()?.let { warmedInfo ->
-                lastModelInfo = warmedInfo
-            }
-        }
-        return reloadOk
-    }
 }
 
 /**

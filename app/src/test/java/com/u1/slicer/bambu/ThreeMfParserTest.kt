@@ -1,12 +1,7 @@
 package com.u1.slicer.bambu
 
 import org.junit.Assert.*
-import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.TemporaryFolder
-import java.io.File
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 /**
  * Tests for ThreeMfParser.
@@ -168,5 +163,46 @@ class ThreeMfParserTest {
         val dualColorItems = listOf(Item(135f, 135f, true))
         assertFalse("Single-plate dual-colour should NOT be multi-plate",
             hasVirtualPlateItems(dualColorItems))
+    }
+
+    @Test
+    fun `assessArchiveSizing ignores main model and safe component totals`() {
+        val risk = ThreeMfParser.assessArchiveSizing(
+            listOf(
+                "3D/3dmodel.model" to (300L * 1024L * 1024L),
+                "3D/Objects/part_1.model" to (120L * 1024L * 1024L),
+                "3D/Objects/part_2.model" to (120L * 1024L * 1024L)
+            )
+        )
+
+        assertNull(risk)
+    }
+
+    @Test
+    fun `assessArchiveSizing flags oversized single component entry`() {
+        val risk = ThreeMfParser.assessArchiveSizing(
+            listOf(
+                "3D/Objects/part_1.model" to (300L * 1024L * 1024L),
+                "3D/Objects/part_2.model" to (20L * 1024L * 1024L)
+            )
+        )
+
+        assertNotNull(risk)
+        assertEquals("3D/Objects/part_1.model", risk?.largestComponentEntry)
+        assertEquals(300L * 1024L * 1024L, risk?.largestComponentBytes)
+    }
+
+    @Test
+    fun `assessArchiveSizing flags oversized combined component total`() {
+        val risk = ThreeMfParser.assessArchiveSizing(
+            listOf(
+                "3D/Objects/part_1.model" to (200L * 1024L * 1024L),
+                "3D/Objects/part_2.model" to (190L * 1024L * 1024L)
+            )
+        )
+
+        assertNotNull(risk)
+        assertEquals(390L * 1024L * 1024L, risk?.totalComponentBytes)
+        assertEquals("3D/Objects/part_1.model", risk?.largestComponentEntry)
     }
 }

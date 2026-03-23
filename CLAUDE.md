@@ -49,7 +49,7 @@ Public vulnerability reports should follow [`SECURITY.md`](SECURITY.md). Keep an
 ## Test
 
 ```bash
-./gradlew testDebugUnitTest                        # 515 JVM unit tests
+./gradlew testDebugUnitTest                        # 517 JVM unit tests
 ./gradlew connectedDebugAndroidTest                # 125 instrumented tests (uses Orchestrator)
 ```
 
@@ -82,7 +82,7 @@ For local device IDs and any private E2E notes, consult `E2E_TESTING.local.md` i
 - `DiagnosticsStoreTest.kt` (5) — Diagnostics event logging, JSONL output
 - `MergeThreeMfInfoTest.kt` (20) — mergeThreeMfInfo/ForPlate objectExtruderMap preference, preview file selection, H2C source detection, SEMM extruderRemap suppression (color bug fix)
 - `printer/PrinterRepositoryTest.kt` (2) — upload filename sanitization and unique suffix generation
-- `PreparePreviewPlacementTest.kt` (2) — native 3MF wipe tower visibility and object-placement rules
+- `PreparePreviewPlacementTest.kt` (5) — native 3MF wipe tower visibility, object-placement rules, and large-preview fallback state retention
 - `viewer/NativePreviewMeshTest.kt` (2) — preview budget guardrails for very large native meshes
 - iewer/ModelRendererCameraTest.kt (3) — Prepare preview fit distance keeps smaller multi-colour plates readable
 - iewer/ModelViewerViewTest.kt (3) — Prepare selection falls back from face-plane to bed-plane hit-testing when needed

@@ -47,13 +47,12 @@ adb -s 43211JEKB00954 push "app/src/androidTest/assets/u1-auxiliary-fan-cover-he
 adb -s 43211JEKB00954 push "app/src/androidTest/assets/calib-cube-10-dual-colour-merged.3mf" //sdcard/Download/
 ```
 
-Then launch the app with the file's content URI before running the flow:
+Then resolve the content URI from MediaStore, launch the file, and run the flow:
 
 ```bash
 ID=$(adb -s 43211JEKB00954 shell content query \
   --uri content://media/external/file \
-  --projection _id:_display_name \
-  --where "_display_name='tetrahedron.stl'" | grep -oE "_id=[0-9]+" | grep -oE "[0-9]+")
+  --projection _id:_display_name | grep "tetrahedron.stl" | grep -oE "_id=[0-9]+" | grep -oE "[0-9]+")
 
 adb -s 43211JEKB00954 shell am start \
   -n com.u1.slicer.orca/com.u1.slicer.MainActivity \
@@ -62,6 +61,8 @@ adb -s 43211JEKB00954 shell am start \
   -d "content://media/external/file/$ID" \
   --grant-read-uri-permission
 ```
+
+The slice flows intentionally omit `launchApp`; they assume the file-open intent is already on screen.
 
 ## Large files (not bundled in assets — 24MB+)
 

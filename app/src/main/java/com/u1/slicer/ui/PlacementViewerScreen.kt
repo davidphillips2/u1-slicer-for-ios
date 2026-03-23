@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -115,86 +117,28 @@ fun PlacementViewerScreen(
                 modifier = Modifier.fillMaxWidth().weight(1f).padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
-                val canvasSize = minOf(maxWidth, maxHeight)
-                // Prime tower is square: width × width (matches OrcaSlicer default shape)
-                val towerDepthMm = wipeTowerWidthMm
-
-                Canvas(
-                    modifier = Modifier
-                        .size(canvasSize)
-                        .pointerInput(copyCount, wipeTowerEnabled, snapToGrid) {
-                            val ppm = size.width.toFloat() / BED_MM
-                            val tW = wipeTowerWidthMm * ppm
-                            val tH = towerDepthMm * ppm
-                            val objW = modelInfo.sizeX * ppm
-                            val objH = modelInfo.sizeY * ppm
-
-                            detectDragGestures(
-                                onDragStart = { offset ->
-                                    draggingIdx = -1
-                                    // Check tower first so it can be selected even when overlapping objects
-                                    if (wipeTowerEnabled) {
-                                        val tx = towerX * ppm; val ty = towerY * ppm
-                                        if (offset.x in tx..(tx + tW) && offset.y in ty..(ty + tH)) {
-                                            draggingIdx = copyCount; return@detectDragGestures
-                                        }
-                                    }
-                                    for (i in 0 until copyCount) {
-                                        val ox = objXState[i] * ppm; val oy = objYState[i] * ppm
-                                        if (offset.x in ox..(ox + objW) && offset.y in oy..(oy + objH)) {
-                                            draggingIdx = i; break
-                                        }
-                                    }
-                                },
-                                onDrag = { change, dragAmount ->
-                                    change.consume()
-                                    val p = size.width.toFloat() / BED_MM
-                                    val dx = dragAmount.x / p; val dy = dragAmount.y / p
-                                    when {
-                                        draggingIdx == copyCount && wipeTowerEnabled -> {
-                                            towerX = snapMm((towerX + dx).coerceIn(0f, BED_MM - wipeTowerWidthMm))
-                                            towerY = snapMm((towerY + dy).coerceIn(0f, BED_MM - towerDepthMm))
-                                        }
-                                        draggingIdx in 0 until copyCount -> {
-                                            val i = draggingIdx
-                                            objXState[i] = snapMm((objXState[i] + dx).coerceIn(0f, maxOf(0f, BED_MM - modelInfo.sizeX)))
-                                            objYState[i] = snapMm((objYState[i] + dy).coerceIn(0f, maxOf(0f, BED_MM - modelInfo.sizeY)))
-                                        }
-                                    }
-                                },
-                                onDragEnd = { draggingIdx = -1 }
-                            )
-                        }
-                ) {
-                    val ppm = size.width / BED_MM
-                    drawRect(Color(0xFF1A1A1A), size = size)
-                    drawBedGrid(ppm)
-                    drawRect(Color(0xFF555555), size = size, style = Stroke(2f))
-
-                    // Draw objects first, then tower on top so it's always visible and selectable
-                    val objWpx = modelInfo.sizeX * ppm; val objHpx = modelInfo.sizeY * ppm
-                    for (i in 0 until copyCount) {
-                        val ox = objXState[i] * ppm; val oy = objYState[i] * ppm
-                        val color = OBJECT_COLORS[i % OBJECT_COLORS.size]
-                        val active = draggingIdx == i
-                        drawRect(color.copy(alpha = if (active) 0.85f else 0.55f),
-                            topLeft = Offset(ox, oy), size = Size(objWpx, objHpx))
-                        drawRect(if (active) Color.White else color,
-                            topLeft = Offset(ox, oy), size = Size(objWpx, objHpx),
-                            style = Stroke(if (active) 3f else 1.5f))
+                SimplifiedPlacementBed(
+                    modifier = Modifier.size(minOf(maxWidth, maxHeight)),
+                    modelSizeX = modelInfo.sizeX,
+                    modelSizeY = modelInfo.sizeY,
+                    copyCount = copyCount,
+                    wipeTowerEnabled = wipeTowerEnabled,
+                    wipeTowerWidthMm = wipeTowerWidthMm,
+                    objectX = objXState,
+                    objectY = objYState,
+                    towerX = towerX,
+                    towerY = towerY,
+                    draggingIdx = draggingIdx,
+                    onDraggingIdxChange = { draggingIdx = it },
+                    onObjectMove = { index, x, y ->
+                        objXState[index] = snapMm(x)
+                        objYState[index] = snapMm(y)
+                    },
+                    onTowerMove = { x, y ->
+                        towerX = snapMm(x)
+                        towerY = snapMm(y)
                     }
-
-                    if (wipeTowerEnabled) {
-                        val tW = wipeTowerWidthMm * ppm; val tH = towerDepthMm * ppm
-                        val tx = towerX * ppm; val ty = towerY * ppm
-                        val active = draggingIdx == copyCount
-                        drawRect(WIPE_TOWER_COLOR.copy(alpha = if (active) 0.9f else 0.7f),
-                            topLeft = Offset(tx, ty), size = Size(tW, tH))
-                        drawRect(if (active) Color.White else WIPE_TOWER_COLOR,
-                            topLeft = Offset(tx, ty), size = Size(tW, tH),
-                            style = Stroke(if (active) 3f else 1.5f))
-                    }
-                }
+                )
             }
 
             Row(
@@ -216,6 +160,179 @@ fun PlacementViewerScreen(
                 Icon(Icons.Default.CheckCircle, null)
                 Spacer(Modifier.width(8.dp))
                 Text("Apply Positions", fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+fun SimplifiedPlacementBed(
+    modifier: Modifier = Modifier,
+    modelSizeX: Float,
+    modelSizeY: Float,
+    copyCount: Int,
+    wipeTowerEnabled: Boolean,
+    wipeTowerWidthMm: Float,
+    objectX: List<Float>,
+    objectY: List<Float>,
+    towerX: Float,
+    towerY: Float,
+    draggingIdx: Int,
+    onDraggingIdxChange: (Int) -> Unit,
+    onObjectMove: (index: Int, x: Float, y: Float) -> Unit,
+    onTowerMove: (x: Float, y: Float) -> Unit,
+    overlayTitle: String? = null,
+    overlayBody: String? = null,
+    overlayActionLabel: String? = null,
+    onOverlayAction: (() -> Unit)? = null
+) {
+    BoxWithConstraints(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        val canvasSize = minOf(maxWidth, maxHeight)
+        val towerDepthMm = wipeTowerWidthMm
+
+        Box(modifier = Modifier.size(canvasSize), contentAlignment = Alignment.Center) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(copyCount, wipeTowerEnabled, modelSizeX, modelSizeY, wipeTowerWidthMm, towerX, towerY) {
+                        val ppm = size.width.toFloat() / BED_MM
+                        val tW = wipeTowerWidthMm * ppm
+                        val tH = towerDepthMm * ppm
+                        val objW = modelSizeX * ppm
+                        val objH = modelSizeY * ppm
+
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                onDraggingIdxChange(-1)
+                                if (wipeTowerEnabled) {
+                                    val tx = towerX * ppm
+                                    val ty = towerY * ppm
+                                    if (offset.x in tx..(tx + tW) && offset.y in ty..(ty + tH)) {
+                                        onDraggingIdxChange(copyCount)
+                                        return@detectDragGestures
+                                    }
+                                }
+                                for (i in 0 until copyCount) {
+                                    val ox = objectX.getOrElse(i) { 0f } * ppm
+                                    val oy = objectY.getOrElse(i) { 0f } * ppm
+                                    if (offset.x in ox..(ox + objW) && offset.y in oy..(oy + objH)) {
+                                        onDraggingIdxChange(i)
+                                        break
+                                    }
+                                }
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                val ppmDrag = size.width.toFloat() / BED_MM
+                                val dx = dragAmount.x / ppmDrag
+                                val dy = dragAmount.y / ppmDrag
+                                when {
+                                    draggingIdx == copyCount && wipeTowerEnabled -> {
+                                        onTowerMove(
+                                            (towerX + dx).coerceIn(0f, BED_MM - wipeTowerWidthMm),
+                                            (towerY + dy).coerceIn(0f, BED_MM - towerDepthMm)
+                                        )
+                                    }
+                                    draggingIdx in 0 until copyCount -> {
+                                        val i = draggingIdx
+                                        onObjectMove(
+                                            i,
+                                            (objectX.getOrElse(i) { 0f } + dx).coerceIn(0f, maxOf(0f, BED_MM - modelSizeX)),
+                                            (objectY.getOrElse(i) { 0f } + dy).coerceIn(0f, maxOf(0f, BED_MM - modelSizeY))
+                                        )
+                                    }
+                                }
+                            },
+                            onDragEnd = { onDraggingIdxChange(-1) }
+                        )
+                    }
+            ) {
+                val ppm = size.width / BED_MM
+                drawRect(Color(0xFF1A1A1A), size = size)
+                drawBedGrid(ppm)
+                drawRect(Color(0xFF555555), size = size, style = Stroke(2f))
+
+                val objWpx = modelSizeX * ppm
+                val objHpx = modelSizeY * ppm
+                for (i in 0 until copyCount) {
+                    val ox = objectX.getOrElse(i) { 0f } * ppm
+                    val oy = objectY.getOrElse(i) { 0f } * ppm
+                    val color = OBJECT_COLORS[i % OBJECT_COLORS.size]
+                    val active = draggingIdx == i
+                    drawRect(
+                        color.copy(alpha = if (active) 0.85f else 0.55f),
+                        topLeft = Offset(ox, oy),
+                        size = Size(objWpx, objHpx)
+                    )
+                    drawRect(
+                        if (active) Color.White else color,
+                        topLeft = Offset(ox, oy),
+                        size = Size(objWpx, objHpx),
+                        style = Stroke(if (active) 3f else 1.5f)
+                    )
+                }
+
+                if (wipeTowerEnabled) {
+                    val tW = wipeTowerWidthMm * ppm
+                    val tH = towerDepthMm * ppm
+                    val tx = towerX * ppm
+                    val ty = towerY * ppm
+                    val active = draggingIdx == copyCount
+                    drawRect(
+                        WIPE_TOWER_COLOR.copy(alpha = if (active) 0.9f else 0.7f),
+                        topLeft = Offset(tx, ty),
+                        size = Size(tW, tH)
+                    )
+                    drawRect(
+                        if (active) Color.White else WIPE_TOWER_COLOR,
+                        topLeft = Offset(tx, ty),
+                        size = Size(tW, tH),
+                        style = Stroke(if (active) 3f else 1.5f)
+                    )
+                }
+            }
+
+            if (overlayTitle != null || overlayBody != null || (overlayActionLabel != null && onOverlayAction != null)) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.Black.copy(alpha = 0.64f),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(12.dp)
+                        .fillMaxWidth(0.92f)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        overlayTitle?.let {
+                            Text(
+                                it,
+                                color = Color.White,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        overlayBody?.let {
+                            Text(
+                                it,
+                                color = Color.White.copy(alpha = 0.82f),
+                                style = MaterialTheme.typography.bodySmall,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        if (overlayActionLabel != null && onOverlayAction != null) {
+                            TextButton(onClick = onOverlayAction) {
+                                Text(overlayActionLabel)
+                            }
+                        }
+                    }
+                }
             }
         }
     }

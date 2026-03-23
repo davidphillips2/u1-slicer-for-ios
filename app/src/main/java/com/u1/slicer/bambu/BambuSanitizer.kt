@@ -25,6 +25,7 @@ import java.util.zip.ZipOutputStream
  */
 object BambuSanitizer {
     private const val TAG = "BambuSanitizer"
+    private const val MAX_IN_MEMORY_MAIN_MODEL_BYTES = 64L * 1024L * 1024L
 
     // Files to drop entirely
     private val DROP_FILES = setOf(
@@ -98,8 +99,10 @@ object BambuSanitizer {
                     var projectSettingsWritten = false
                     // objectId → ordered list of (faceCount, extruder) per part, built while processing model_settings.config
                     val bambuObjectParts = mutableMapOf<String, ObjectParts>()
-                    // Buffer the main model file for restructuring after we know the extruder assignments
-                    var mainModelContent: ByteArray? = null
+                    // Track the main model entry so we can choose between an in-memory
+                    // restructure path and a streaming sanitize path after we know the
+                    // extruder assignments.
+                    var mainModelEntry: ZipEntry? = null
                     // Track component file names — content loaded on-demand from srcZip to reduce memory
                     val componentFileNames = mutableListOf<String>()
                     // Buffer model_settings.config — preserved for multi-plate files so
@@ -156,7 +159,7 @@ object BambuSanitizer {
                             // others for mesh inlining during restructuring
                             name.endsWith(".model") -> {
                                 if (name == "3D/3dmodel.model") {
-                                    mainModelContent = srcZip.getInputStream(entry).readBytes()
+                                    mainModelEntry = entry
                                     // Don't write yet — written after restructuring below
                                 } else {
                                     componentFileNames.add(name)
@@ -197,7 +200,17 @@ object BambuSanitizer {
                     }
 
                     // Write (possibly restructured) main model file
-                    if (mainModelContent != null) {
+                    if (mainModelEntry != null) {
+                        val mainModelSize = mainModelEntry!!.size
+                        if (mainModelSize > MAX_IN_MEMORY_MAIN_MODEL_BYTES) {
+                            Log.w(
+                                TAG,
+                                "Main model is too large to buffer (${mainModelSize / 1_000_000}MB), " +
+                                    "using streaming sanitize path"
+                            )
+                            copyMainModelEntry(srcZip, mainModelEntry!!, destZip)
+                        } else {
+                            val mainModelContent = srcZip.getInputStream(mainModelEntry!!).readBytes()
                         // Restructure compound multi-color objects into separate build items.
                         // Only consider extruders 1..4 — BambuStudio uses indices 5+ for paint
                         // colour markers that have no corresponding physical extruder slot on the
@@ -218,8 +231,7 @@ object BambuSanitizer {
                         } else 0L
                         // Detect multi-plate: check for virtual-position build items (TX>270 or
                         // TY<0) which indicate multiple plates packed into one model.
-                        val modelXml = String(mainModelContent!!)
-                        val isMultiPlate = detectMultiPlateFromBuild(modelXml)
+                        val isMultiPlate = detectMultiPlateFromBuild(mainModelContent!!)
                         if (isMultiPlate && hasMultiColorComponents) {
                             Log.i(TAG, "Multi-plate file detected — skipping restructuring " +
                                 "(${totalComponentSize / 1_000_000}MB components), will restructure per-plate")
@@ -306,6 +318,7 @@ object BambuSanitizer {
                             for ((parentId, parts) in newParentParts) {
                             bambuObjectParts[parentId] = parts.copy(parts = parts.parts.toMutableList())
                             }
+                        }
                         }
                     }
 
@@ -964,22 +977,49 @@ $componentRefs    </components>
      * <build> items for virtual-position transforms (TX>270 or TY<-10 or TY>270)
      * or p:object_id plate markers.
      */
-    private fun detectMultiPlateFromBuild(modelXml: String): Boolean {
-        val buildRegex = Regex("""<build\b[^>]*>(.*?)</build>""", setOf(RegexOption.DOT_MATCHES_ALL))
-        val buildBody = buildRegex.find(modelXml)?.groupValues?.get(1) ?: return false
-        val itemRegex = Regex("""<item\b[^>]*(?:/>|>.*?</item>)""", setOf(RegexOption.DOT_MATCHES_ALL))
-        val items = itemRegex.findAll(buildBody).map { it.value }.toList()
-        if (items.size <= 1) return false
-        // Check for p:object_id plate markers (older Bambu format with explicit plate tags)
-        if (items.any { it.contains("p:object_id=") }) return true
-        // Check for virtual-position transforms
-        val transformRegex = Regex("""transform="([^"]+)"""")
-        return items.any { item ->
-            val parts = transformRegex.find(item)?.groupValues?.get(1)
-                ?.trim()?.split(Regex("\\s+")) ?: emptyList()
-            val tx = parts.getOrNull(9)?.toFloatOrNull() ?: 0f
-            val ty = parts.getOrNull(10)?.toFloatOrNull() ?: 0f
-            tx > 270f || ty < -10f || ty > 270f
+    private fun detectMultiPlateFromBuild(modelContent: ByteArray): Boolean {
+        return try {
+            val factory = XmlPullParserFactory.newInstance()
+            factory.isNamespaceAware = false
+            val parser = factory.newPullParser()
+            parser.setInput(modelContent.inputStream(), "UTF-8")
+
+            var inBuild = false
+            var buildItemCount = 0
+
+            while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+                when (parser.eventType) {
+                    XmlPullParser.START_TAG -> when (parser.name) {
+                        "build" -> inBuild = true
+                        "item" -> if (inBuild) {
+                            buildItemCount++
+                            if (buildItemCount > 1) {
+                                if (!parser.getAttributeValue(null, "p:object_id").isNullOrBlank()) {
+                                    return true
+                                }
+                                val parts = parser.getAttributeValue(null, "transform")
+                                    ?.trim()
+                                    ?.split(Regex("\\s+"))
+                                    .orEmpty()
+                                val tx = parts.getOrNull(9)?.toFloatOrNull() ?: 0f
+                                val ty = parts.getOrNull(10)?.toFloatOrNull() ?: 0f
+                                if (tx > 270f || ty < -10f || ty > 270f) {
+                                    return true
+                                }
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        if (parser.name == "build") inBuild = false
+                    }
+                }
+                parser.next()
+            }
+
+            false
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to detect multi-plate build layout: ${e.message}")
+            false
         }
     }
 
@@ -1284,6 +1324,84 @@ $componentRefs    </components>
     }
 
     /** Raw-copy a ZIP entry without any processing — preserves original CRC/size. */
+    /**
+     * Stream-copy the main 3D/3dmodel.model entry while stripping Bambu extensions.
+     *
+     * This is used for giant models that are too large to buffer in memory.  It keeps
+     * the same line-by-line cleanup behavior as [copyZipEntry], but preserves p:path so
+     * component references still work when present.
+     */
+    private fun copyMainModelEntry(srcZip: ZipFile, srcEntry: ZipEntry, destZip: ZipOutputStream) {
+        val tmpFile = File.createTempFile("3mf_main_model_", ".model")
+        val pUuidRegex = Regex("""\s+p:UUID="[^"]*"""")
+        val reqExtRegex = Regex("""\s+requiredextensions="[^"]*"""")
+        val bambuNsRegex = Regex("""\s+xmlns:BambuStudio="[^"]*"""")
+        val slic3rpeNsRegex = Regex("""\s+xmlns:slic3rpe="[^"]*"""")
+        val metadataRegex = Regex("""[ \t]*<metadata name="[^"]*"(?:>[^<]*</metadata>|[^/]*/>) *\r?\n?""")
+        try {
+            tmpFile.bufferedWriter().use { out ->
+                srcZip.getInputStream(srcEntry).bufferedReader().use { reader ->
+                    reader.forEachLine { line ->
+                        if (!line.contains("p:UUID") && !line.contains("requiredextensions") &&
+                            !line.contains("xmlns:BambuStudio") && !line.contains("xmlns:slic3rpe") &&
+                            !line.contains("<metadata") && !line.contains("mmu_segmentation") &&
+                            !line.contains("type=\"other\"")) {
+                            if (line.contains("""printable="0"""")) return@forEachLine
+                            if (line.isNotBlank()) {
+                                out.write(line)
+                                out.newLine()
+                            }
+                            return@forEachLine
+                        }
+
+                        var cleaned = line.replace(pUuidRegex, "")
+                        cleaned = cleaned.replace(reqExtRegex, "")
+                        cleaned = cleaned.replace(bambuNsRegex, "")
+                        cleaned = cleaned.replace(slic3rpeNsRegex, "")
+                        cleaned = cleaned.replace(metadataRegex, "")
+                        if (cleaned.contains("slic3rpe:mmu_segmentation=")) {
+                            cleaned = cleaned.replace(Regex("""\s+slic3rpe:mmu_segmentation="[^"]*""""), "")
+                        }
+                        cleaned = cleaned.replace("""type="other"""", """type="model"""")
+                        if (cleaned.contains("""printable="0"""")) return@forEachLine
+                        if (cleaned.isNotBlank()) {
+                            out.write(cleaned)
+                            out.newLine()
+                        }
+                    }
+                }
+            }
+
+            val crc = CRC32()
+            var totalSize = 0L
+            tmpFile.inputStream().use { input ->
+                val buf = ByteArray(8192)
+                var n: Int
+                while (input.read(buf).also { n = it } >= 0) {
+                    crc.update(buf, 0, n)
+                    totalSize += n
+                }
+            }
+
+            val entry = ZipEntry(srcEntry.name)
+            entry.method = ZipEntry.STORED
+            entry.size = totalSize
+            entry.compressedSize = totalSize
+            entry.crc = crc.value
+            destZip.putNextEntry(entry)
+            tmpFile.inputStream().use { input ->
+                val buf = ByteArray(8192)
+                var n: Int
+                while (input.read(buf).also { n = it } >= 0) {
+                    destZip.write(buf, 0, n)
+                }
+            }
+            destZip.closeEntry()
+        } finally {
+            tmpFile.delete()
+        }
+    }
+
     private fun rawCopyZipEntry(srcZip: ZipFile, srcEntry: ZipEntry, destZip: ZipOutputStream) {
         val entry = ZipEntry(srcEntry.name)
         entry.method = ZipEntry.STORED

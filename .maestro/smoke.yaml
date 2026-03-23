@@ -9,20 +9,19 @@ appId: com.u1.slicer.orca
 # Title is visible
 - assertVisible: "U1 Slicer"
 
-# Version string must mention OrcaSlicer (not PrusaSlicer)
+# Version banner should show the actual core build label.
 - assertVisible:
-    text: "Snapmaker Orca"
-    enabled: true
+    text: "Snapmaker Orca 2.2.4 (Android ARM64)"
 
 # Bottom nav bar has all 5 tabs
-- assertVisible: "Slicer"
+- assertVisible: "Prepare"
 - assertVisible: "Printer"
-- assertVisible: "Filaments"
+- assertVisible: "Preview"
 - assertVisible: "Jobs"
 - assertVisible: "Settings"
 
 # Navigate to Settings and back
 - tapOn: "Settings"
 - assertVisible: "Settings"
-- tapOn: "Slicer"
+- tapOn: "Prepare"
 - assertVisible: "U1 Slicer"

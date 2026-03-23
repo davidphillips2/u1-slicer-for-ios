@@ -9,7 +9,7 @@ import com.u1.slicer.printer.PrinterRepository
 class AppContainer(context: Context) {
     val settingsRepository = SettingsRepository(context)
     val moonrakerClient = MoonrakerClient()
-    val printerRepository = PrinterRepository(moonrakerClient, settingsRepository)
+    val printerRepository = PrinterRepository(context.applicationContext, moonrakerClient, settingsRepository)
 
     val database = AppDatabase.getInstance(context)
     val filamentDao = database.filamentDao()

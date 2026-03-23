@@ -62,4 +62,13 @@ class FilePickerValidationTest {
         assertTrue(SlicerViewModel.isSupportedFile("my.model.v2.3mf"))
         assertFalse(SlicerViewModel.isSupportedFile("model.3mf.zip"))
     }
+
+    @Test
+    fun `download metadata suffix is stripped before extension checks`() {
+        val normalized = SlicerViewModel.normalizeIncomingFilename(
+            "super+clean.3mf;filename*=utf-8''super+clean.3mf"
+        )
+        assertTrue(SlicerViewModel.isSupportedFile(normalized))
+        assertTrue(normalized.endsWith(".3mf"))
+    }
 }
